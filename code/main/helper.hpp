@@ -13,6 +13,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
+#include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_oneshot.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"

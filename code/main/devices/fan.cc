@@ -65,29 +65,30 @@ void fan::set_speed(float p)
 float fan::read_fan_voltage()
 {
     int raw;
-    esp_err_t err = adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_voltage.adc_cali_handle, adc_channel_voltage.adc_channel, &raw);
-    if (err == ESP_OK)
-        return (float)raw / 2500 * 27.5f;
-    return -1;
+    ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_voltage.adc_cali_handle, adc_channel_voltage.adc_channel, &raw));
+    voltage = (float)raw / 2500 * 27.5f;
+    return voltage;
 }
 float fan::read_fan_current()
 {
     int raw;
     set_adc_range(adc_channel_current, ADC_ATTEN_DB_0);
-    adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw);
+    ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw));
     if (raw >= 730)
     {
         set_adc_range(adc_channel_current, ADC_ATTEN_DB_6);
-        adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw);
+        ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw));
         if (raw >= 1200)
         {
             set_adc_range(adc_channel_current, ADC_ATTEN_DB_12);
-            adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw);
+            ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw));
         }
     }
-    return (float)raw / 2500 * 2.02f;
+    current = (float)raw / 2500 * 2.02f;
+    return current;
 }
 float fan::read_fan_power()
 {
-    return read_fan_current() * read_fan_voltage();
+    power = read_fan_current() * read_fan_voltage();
+    return power;
 }

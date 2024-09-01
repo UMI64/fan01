@@ -28,7 +28,7 @@ void controller::fan_power_controller_task(void *param)
         power_sum += board_obj->fan_obj->read_fan_power();
         if (count++ > 20)
         {
-            ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW", board_obj->fan_obj->read_fan_voltage(), board_obj->fan_obj->read_fan_current(), power_sum / 20);
+            ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW", board_obj->fan_obj->voltage, board_obj->fan_obj->current, power_sum / 20);
             count = 0;
             power_sum = 0;
         }

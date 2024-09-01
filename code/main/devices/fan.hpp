@@ -28,11 +28,16 @@ private:
             cali_config.chan = adc_channel.adc_channel;
             cali_config.atten = adc_atten;
             cali_config.bitwidth = ADC_BITWIDTH_12;
+            ESP_ERROR_CHECK(adc_cali_delete_scheme_curve_fitting(adc_channel.adc_cali_handle));
             ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &adc_channel.adc_cali_handle));
         }
     }
 
 public:
+    float voltage;
+    float current;
+    float power;
+
     fan(ledc_channel_t ledc_channel, adc_oneshot_unit_handle_t &adc_oneshot_unit_handle);
     void set_switch(bool sw);
     void set_speed(float p);
