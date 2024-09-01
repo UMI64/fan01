@@ -3,10 +3,14 @@
 class fan
 {
 private:
+    bool fan_power_switch = false;
+    float current_power = 0;
+    float target_power = 0;
+    float current_duty_cycle = 0;
+
     gpio_num_t fan_power_pin = GPIO_NUM_4;
     gpio_num_t fan_pwm_pin = GPIO_NUM_13;
     gpio_num_t fan_speed_pin = GPIO_NUM_12;
-    ledc_channel_t ledc_channel;
     struct adc_channel_unit_t
     {
         adc_channel_t adc_channel;
@@ -32,16 +36,20 @@ private:
             ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &adc_channel.adc_cali_handle));
         }
     }
+    thread_helper *power_controller_thread;
+    void set_duty_cycle(float p);
+    void power_controller_task(void *param);
 
 public:
     float voltage;
     float current;
     float power;
 
-    fan(ledc_channel_t ledc_channel, adc_oneshot_unit_handle_t &adc_oneshot_unit_handle);
+    fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle);
+    ~fan();
     void set_switch(bool sw);
-    void set_speed(float p);
-    float get_speed(void);
+    void set_target_power(float w);
+    float get_duty_cycle(void);
     float read_fan_voltage();
     float read_fan_current();
     float read_fan_power();

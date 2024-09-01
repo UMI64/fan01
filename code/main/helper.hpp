@@ -176,3 +176,12 @@ public:
         ESP_ERROR_CHECK(esp_timer_stop(helper->lvgl_tick_timer));
     }
 };
+
+class math_helper
+{
+public:
+    static float limit_range(float num, float max, float min)
+    {
+        return num < min ? (min) : (num > max ? max : num);
+    }
+};

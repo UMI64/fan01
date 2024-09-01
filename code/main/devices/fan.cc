@@ -1,5 +1,5 @@
 #include "fan.hpp"
-fan::fan(ledc_channel_t ledc_channel, adc_oneshot_unit_handle_t &adc_oneshot_unit_handle)
+fan::fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle)
 {
     gpio_config_t io_conf = {};
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -17,10 +17,9 @@ fan::fan(ledc_channel_t ledc_channel, adc_oneshot_unit_handle_t &adc_oneshot_uni
     gpio_set_level(fan_speed_pin, 0);
     ESP_ERROR_CHECK(gpio_config(&io_conf));
 
-    this->ledc_channel = ledc_channel;
     ledc_channel_config_t ledc_channel_fan = {};
     ledc_channel_fan.speed_mode = LEDC_LOW_SPEED_MODE;
-    ledc_channel_fan.channel = this->ledc_channel;
+    ledc_channel_fan.channel = LEDC_CHANNEL_0;
     ledc_channel_fan.timer_sel = LEDC_TIMER_0;
     ledc_channel_fan.intr_type = LEDC_INTR_DISABLE;
     ledc_channel_fan.gpio_num = fan_pwm_pin;
@@ -50,16 +49,42 @@ fan::fan(ledc_channel_t ledc_channel, adc_oneshot_unit_handle_t &adc_oneshot_uni
     cali_config.chan = adc_channel_voltage.adc_channel;
     ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &adc_channel_voltage.adc_cali_handle));
 }
+fan::~fan()
+{
+    if (fan_power_switch)
+    {
+        gpio_set_level(fan_power_pin, 0);
+        delete power_controller_thread;
+    }
+}
 void fan::set_switch(bool sw)
 {
-    gpio_set_level(fan_power_pin, sw ? 0 : 1);
+    fan_power_switch = sw;
+    if (fan_power_switch)
+    {
+        gpio_set_level(fan_power_pin, 1);
+        power_controller_thread = new thread_helper(std::bind(&fan::power_controller_task, this, std::placeholders::_1));
+    }
+    else
+    {
+        gpio_set_level(fan_power_pin, 0);
+        delete power_controller_thread;
+    }
 }
-void fan::set_speed(float p)
+void fan::set_target_power(float w)
 {
-    p = p > 100 ? (100) : (p > 0 ? p : 0);
+    target_power = w;
+}
+void fan::set_duty_cycle(float p)
+{
+    current_duty_cycle = math_helper::limit_range(p, 100, 0);
     uint32_t uint_duty = p / 100 * 0b1111111111111;
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, ledc_channel, uint_duty));
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, ledc_channel));
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, uint_duty));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0));
+}
+float fan::get_duty_cycle(void)
+{
+    return current_duty_cycle;
 }
 
 float fan::read_fan_voltage()
@@ -91,4 +116,30 @@ float fan::read_fan_power()
 {
     power = read_fan_current() * read_fan_voltage();
     return power;
+}
+
+void fan::power_controller_task(void *param)
+{
+    int count = 0;
+    float power_sum = 0;
+    float p = 0.1, i = 0.1, d = 0;
+    float change_duty_cycle, diff_sum = 0;
+    TickType_t last_wake_tick = thread_helper::get_time_tick();
+    while (!thread_helper::thread_is_exit())
+    {
+        thread_helper::sleep_until(last_wake_tick, 10);
+        power_sum += read_fan_power();
+        if (count++ > 20)
+        {
+            current_power = power_sum / 20;
+            float diff = target_power - current_power;
+            diff_sum += diff * 0.1;
+            diff_sum = math_helper::limit_range(diff_sum, 20, -20);
+            change_duty_cycle = diff * p + diff_sum * i;
+            set_duty_cycle(current_duty_cycle + change_duty_cycle);
+            ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW DC: %0.2f CDC: %0.2f", voltage, current, current_power, current_duty_cycle, change_duty_cycle);
+            count = 0;
+            power_sum = 0;
+        }
+    }
 }
