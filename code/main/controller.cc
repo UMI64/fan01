@@ -28,9 +28,9 @@ void controller::run()
     board_obj->fan_obj->set_switch(true);
     while (1)
     {
-        board_obj->fan_obj->set_target_power(0);
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        board_obj->fan_obj->set_target_power(5);
+        // board_obj->fan_obj->set_target_power(0);
+        // vTaskDelay(pdMS_TO_TICKS(5000));
+        // board_obj->fan_obj->set_target_power(5);
         vTaskDelay(pdMS_TO_TICKS(30000));
     }
 }

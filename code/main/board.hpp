@@ -61,6 +61,30 @@ private:
         }
         ESP_ERROR_CHECK(ret);
     }
+    void oled_init(void)
+    {
+        // esp_lcd_panel_io_i2c_config_t io_config = {};
+        // io_config.dev_addr =  0x3C;
+        // io_config.control_phase_bytes = 1; // According to SSD1306 datasheet
+        // io_config.dc_bit_offset = 6;       // According to SSD1306 datasheet
+        // io_config.lcd_cmd_bits = 8;        // According to SSD1306 datasheet
+        // io_config.lcd_param_bits = 8;      // According to SSD1306 datasheet
+        // io_config.on_color_trans_done = color_trans_done;
+        // io_config.user_ctx = this;
+        // ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)I2C_NUM_0, &io_config, &io_handle));
+
+        // esp_lcd_panel_dev_config_t panel_config = {};
+        // panel_config.bits_per_pixel = 1;
+        // panel_config.reset_gpio_num = -1;
+        // ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1306(io_handle, &panel_config, &panel_handle));
+
+        // uint8_t cmd = 0x22;
+        // ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
+        // ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
+        // ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
+        // ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, true));
+        // ESP_ERROR_CHECK(esp_lcd_panel_io_tx_param(io_handle, 0xDA, &cmd, 1));
+    }
 
 public:
     gpio_num_t sda_pin = GPIO_NUM_9;

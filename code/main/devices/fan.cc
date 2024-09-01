@@ -53,22 +53,26 @@ fan::~fan()
 {
     if (fan_power_switch)
     {
-        gpio_set_level(fan_power_pin, 0);
+        gpio_set_level(fan_power_pin, 1);
         delete power_controller_thread;
     }
 }
 void fan::set_switch(bool sw)
 {
-    fan_power_switch = sw;
-    if (fan_power_switch)
+    if (fan_power_switch != sw)
     {
-        gpio_set_level(fan_power_pin, 1);
-        power_controller_thread = new thread_helper(std::bind(&fan::power_controller_task, this, std::placeholders::_1));
-    }
-    else
-    {
-        gpio_set_level(fan_power_pin, 0);
-        delete power_controller_thread;
+        fan_power_switch = sw;
+        if (fan_power_switch)
+        {
+            gpio_set_level(fan_power_pin, 0);
+            set_duty_cycle(0);
+            power_controller_thread = new thread_helper(std::bind(&fan::power_controller_task, this, std::placeholders::_1));
+        }
+        else
+        {
+            gpio_set_level(fan_power_pin, 1);
+            delete power_controller_thread;
+        }
     }
 }
 void fan::set_target_power(float w)
@@ -78,7 +82,7 @@ void fan::set_target_power(float w)
 void fan::set_duty_cycle(float p)
 {
     current_duty_cycle = math_helper::limit_range(p, 100, 0);
-    uint32_t uint_duty = p / 100 * 0b1111111111111;
+    uint32_t uint_duty = current_duty_cycle / 100 * 0b1111111111111;
     ESP_ERROR_CHECK(ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, uint_duty));
     ESP_ERROR_CHECK(ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0));
 }
@@ -114,7 +118,10 @@ float fan::read_fan_current()
 }
 float fan::read_fan_power()
 {
-    power = read_fan_current() * read_fan_voltage();
+    float current = 0;
+    for (int i = 0; i < 20; i++)
+        current += read_fan_current();
+    power = current / 20 * read_fan_voltage();
     return power;
 }
 
@@ -122,22 +129,22 @@ void fan::power_controller_task(void *param)
 {
     int count = 0;
     float power_sum = 0;
-    float p = 0.1, i = 0.1, d = 0;
+    float p = 0.8, i = 0.04, d = 0;
     float change_duty_cycle, diff_sum = 0;
     TickType_t last_wake_tick = thread_helper::get_time_tick();
     while (!thread_helper::thread_is_exit())
     {
         thread_helper::sleep_until(last_wake_tick, 10);
         power_sum += read_fan_power();
-        if (count++ > 20)
+        if (count++ > 5)
         {
-            current_power = power_sum / 20;
-            float diff = target_power - current_power;
-            diff_sum += diff * 0.1;
-            diff_sum = math_helper::limit_range(diff_sum, 20, -20);
+            current_power = power_sum / 5;
+            float diff = diff * 0.6 + (target_power - current_power) * 0.4;
+            diff_sum += diff * 0.8;
+            diff_sum = math_helper::limit_range(diff_sum, 2, -2);
             change_duty_cycle = diff * p + diff_sum * i;
             set_duty_cycle(current_duty_cycle + change_duty_cycle);
-            ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW DC: %0.2f CDC: %0.2f", voltage, current, current_power, current_duty_cycle, change_duty_cycle);
+            ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW target:%0.1fW DC: %0.2f CDC: %0.2f diff: %0.2f diff_sum: %0.2f", voltage, current, current_power, target_power, current_duty_cycle, change_duty_cycle, diff, diff_sum);
             count = 0;
             power_sum = 0;
         }
