@@ -101,6 +101,10 @@ public:
     {
         return pdTICKS_TO_MS(xTaskGetTickCount());
     }
+    static TickType_t tick_to_ms(TickType_t tick)
+    {
+        return pdTICKS_TO_MS(tick);
+    }
     static void sleep(uint32_t sleep_time_ms)
     {
         vTaskDelay(pdMS_TO_TICKS(sleep_time_ms));

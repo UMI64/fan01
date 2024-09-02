@@ -75,9 +75,17 @@ void fan::set_switch(bool sw)
         }
     }
 }
+void fan::set_turn()
+{
+    set_switch(!fan_power_switch);
+}
 void fan::set_target_power(float w)
 {
     target_power = w;
+}
+float fan::get_target_power()
+{
+    return target_power;
 }
 void fan::set_duty_cycle(float p)
 {
@@ -129,22 +137,22 @@ void fan::power_controller_task(void *param)
 {
     int count = 0;
     float power_sum = 0;
-    float p = 0.8, i = 0.04, d = 0;
+    float p = 0.8, i = 0.04;
     float change_duty_cycle, diff_sum = 0;
     TickType_t last_wake_tick = thread_helper::get_time_tick();
     while (!thread_helper::thread_is_exit())
     {
         thread_helper::sleep_until(last_wake_tick, 10);
         power_sum += read_fan_power();
-        if (count++ > 5)
+        if (count++ > 10)
         {
-            current_power = power_sum / 5;
+            current_power = power_sum / 10;
             float diff = diff * 0.6 + (target_power - current_power) * 0.4;
             diff_sum += diff * 0.8;
             diff_sum = math_helper::limit_range(diff_sum, 2, -2);
             change_duty_cycle = diff * p + diff_sum * i;
             set_duty_cycle(current_duty_cycle + change_duty_cycle);
-            ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW target:%0.1fW DC: %0.2f CDC: %0.2f diff: %0.2f diff_sum: %0.2f", voltage, current, current_power, target_power, current_duty_cycle, change_duty_cycle, diff, diff_sum);
+            // ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW target:%0.1fW DC: %0.2f CDC: %0.2f diff: %0.2f diff_sum: %0.2f", voltage, current, current_power, target_power, current_duty_cycle, change_duty_cycle, diff, diff_sum);
             count = 0;
             power_sum = 0;
         }

@@ -47,8 +47,10 @@ public:
 
     fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle);
     ~fan();
+    void set_turn();
     void set_switch(bool sw);
     void set_target_power(float w);
+    float get_target_power();
     float get_duty_cycle(void);
     float read_fan_voltage();
     float read_fan_current();

@@ -14,4 +14,5 @@ board::~board()
 {
     delete fan_obj;
     delete husb238_obj;
+    delete keyboard_obj;
 }
