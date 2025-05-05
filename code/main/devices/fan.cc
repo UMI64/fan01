@@ -1,61 +1,71 @@
 #include "fan.hpp"
-fan::fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle)
+fan::fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle) : adc_oneshot_unit_handle(adc_oneshot_unit_handle)
 {
     gpio_config_t io_conf = {};
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT_OD;
-    io_conf.pin_bit_mask = 1ULL << fan_power_pin;
+    io_conf.pin_bit_mask = BIT64(fan_power_pin);
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     gpio_set_level(fan_power_pin, 1);
+    gpio_reset_pin(fan_power_pin);
     ESP_ERROR_CHECK(gpio_config(&io_conf));
-    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.intr_type = GPIO_INTR_POSEDGE;
     io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pin_bit_mask = 1ULL << fan_speed_pin;
+    io_conf.pin_bit_mask = BIT64(fan_speed_pin);
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     gpio_set_level(fan_speed_pin, 0);
     ESP_ERROR_CHECK(gpio_config(&io_conf));
+    ESP_ERROR_CHECK(gpio_isr_handler_add(fan_speed_pin, fan::speed_pin_isr_handler, this));
+    {
+        ledc_channel_config_t ledc_channel_fan = {};
+        gpio_reset_pin(fan_pwm_pin);
+        ledc_channel_fan.speed_mode = LEDC_LOW_SPEED_MODE;
+        ledc_channel_fan.channel = LEDC_CHANNEL_0;
+        ledc_channel_fan.timer_sel = LEDC_TIMER_0;
+        ledc_channel_fan.intr_type = LEDC_INTR_DISABLE;
+        ledc_channel_fan.gpio_num = fan_pwm_pin;
+        ledc_channel_fan.duty = 0; // Set duty to 0%
+        ledc_channel_fan.hpoint = 0;
+        ledc_channel_fan.flags.output_invert = 1;
+        ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_fan)); // FAN
+    }
+    {
+        adc_channel_current.adc_channel = ADC_CHANNEL_0;
+        adc_channel_current.adc_oneshot_chan_cfg = {.atten = ADC_ATTEN_DB_0, .bitwidth = ADC_BITWIDTH_DEFAULT};
+        ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_oneshot_unit_handle, adc_channel_current.adc_channel, &adc_channel_current.adc_oneshot_chan_cfg));
+        adc_cali_curve_fitting_config_t adc_current_cali_config = {
+            .unit_id = ADC_UNIT_1,
+            .chan = adc_channel_current.adc_channel,
+            .atten = adc_channel_current.adc_oneshot_chan_cfg.atten,
+            .bitwidth = adc_channel_current.adc_oneshot_chan_cfg.bitwidth,
+        };
+        ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&adc_current_cali_config, &adc_channel_current.adc_cali_handle));
+    }
+    {
+        adc_channel_voltage.adc_channel = ADC_CHANNEL_1;
+        adc_channel_voltage.adc_oneshot_chan_cfg = {.atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT};
+        ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_oneshot_unit_handle, adc_channel_voltage.adc_channel, &adc_channel_voltage.adc_oneshot_chan_cfg));
+        adc_cali_curve_fitting_config_t adc_voltage_cali_config = {
+            .unit_id = ADC_UNIT_1,
+            .chan = adc_channel_voltage.adc_channel,
+            .atten = adc_channel_voltage.adc_oneshot_chan_cfg.atten,
+            .bitwidth = adc_channel_voltage.adc_oneshot_chan_cfg.bitwidth,
 
-    ledc_channel_config_t ledc_channel_fan = {};
-    ledc_channel_fan.speed_mode = LEDC_LOW_SPEED_MODE;
-    ledc_channel_fan.channel = LEDC_CHANNEL_0;
-    ledc_channel_fan.timer_sel = LEDC_TIMER_0;
-    ledc_channel_fan.intr_type = LEDC_INTR_DISABLE;
-    ledc_channel_fan.gpio_num = fan_pwm_pin;
-    ledc_channel_fan.duty = 0; // Set duty to 0%
-    ledc_channel_fan.hpoint = 0;
-    ledc_channel_fan.flags.output_invert = 1;
-    ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_fan)); // FAN
-
-    adc_channel_current.adc_channel = ADC_CHANNEL_0;
-    adc_channel_current.adc_atten = ADC_ATTEN_DB_0;
-    adc_channel_voltage.adc_channel = ADC_CHANNEL_1;
-    adc_channel_voltage.adc_atten = ADC_ATTEN_DB_12;
-    this->adc_oneshot_unit_handle = adc_oneshot_unit_handle;
-    adc_oneshot_chan_cfg_t adc_chan_cfg = {};
-    adc_chan_cfg.atten = ADC_ATTEN_DB_0;
-    adc_chan_cfg.bitwidth = ADC_BITWIDTH_12;
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_oneshot_unit_handle, adc_channel_current.adc_channel, &adc_chan_cfg));
-    adc_chan_cfg.atten = ADC_ATTEN_DB_12;
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_oneshot_unit_handle, adc_channel_voltage.adc_channel, &adc_chan_cfg));
-    adc_cali_curve_fitting_config_t cali_config = {};
-    cali_config.unit_id = ADC_UNIT_1;
-    cali_config.chan = adc_channel_current.adc_channel;
-    cali_config.atten = ADC_ATTEN_DB_0;
-    cali_config.bitwidth = ADC_BITWIDTH_12;
-    ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &adc_channel_current.adc_cali_handle));
-    cali_config.atten = ADC_ATTEN_DB_12;
-    cali_config.chan = adc_channel_voltage.adc_channel;
-    ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &adc_channel_voltage.adc_cali_handle));
+        };
+        ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&adc_voltage_cali_config, &adc_channel_voltage.adc_cali_handle));
+    }
+    main_thread = new thread_helper(std::bind(&fan::main_task, this, std::placeholders::_1), "fan:main_task");
 }
 fan::~fan()
 {
-    if (fan_power_switch)
-    {
-        gpio_set_level(fan_power_pin, 1);
-        delete power_controller_thread;
-    }
+    gpio_set_level(fan_power_pin, 1);
+    delete main_thread;
+}
+const char *fan::tag()
+{
+    return (const char *)"fan";
 }
 void fan::set_switch(bool sw)
 {
@@ -64,29 +74,25 @@ void fan::set_switch(bool sw)
         fan_power_switch = sw;
         if (fan_power_switch)
         {
+            ESP_LOGI(tag(), "set power 0");
             gpio_set_level(fan_power_pin, 0);
-            set_duty_cycle(0);
-            power_controller_thread = new thread_helper(std::bind(&fan::power_controller_task, this, std::placeholders::_1));
         }
         else
         {
+            ESP_LOGI(tag(), "set power 1");
             gpio_set_level(fan_power_pin, 1);
-            delete power_controller_thread;
         }
     }
+}
+bool fan::get_switch()
+{
+    return fan_power_switch;
 }
 void fan::set_turn()
 {
     set_switch(!fan_power_switch);
 }
-void fan::set_target_power(float w)
-{
-    target_power = w;
-}
-float fan::get_target_power()
-{
-    return target_power;
-}
+
 void fan::set_duty_cycle(float p)
 {
     current_duty_cycle = math_helper::limit_range(p, 100, 0);
@@ -99,62 +105,90 @@ float fan::get_duty_cycle(void)
     return current_duty_cycle;
 }
 
-float fan::read_fan_voltage()
+float fan::read_voltage()
 {
     int raw;
     ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_voltage.adc_cali_handle, adc_channel_voltage.adc_channel, &raw));
-    voltage = (float)raw / 2500 * 27.5f;
-    return voltage;
+    return (float)raw / 2500 * 27.5f;
 }
-float fan::read_fan_current()
+float fan::read_current()
 {
     int raw;
-    set_adc_range(adc_channel_current, ADC_ATTEN_DB_0);
     ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw));
-    if (raw >= 730)
-    {
-        set_adc_range(adc_channel_current, ADC_ATTEN_DB_6);
-        ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw));
-        if (raw >= 1200)
-        {
-            set_adc_range(adc_channel_current, ADC_ATTEN_DB_12);
-            ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw));
-        }
-    }
-    current = (float)raw / 2500 * 2.02f;
-    return current;
+    return (float)raw / 2500 * 2.02f;
 }
-float fan::read_fan_power()
+float fan::read_power()
 {
-    float current = 0;
-    for (int i = 0; i < 20; i++)
-        current += read_fan_current();
-    power = current / 20 * read_fan_voltage();
+    uint8_t filter_count = 5;
+    float _current = 0, _voltage = 0;
+    for (int i = 0; i < filter_count; i++)
+    {
+        _current += read_current();
+        _voltage += read_voltage();
+    }
+    current = _current / filter_count;
+    voltage = _voltage / filter_count;
+    power = voltage * current;
+    filter_current = filter_current * 0.95f + current * 0.05f;
+    filter_voltage = filter_voltage * 0.95f + voltage * 0.05f;
+    filter_power = filter_power * 0.95f + power * 0.05f;
     return power;
 }
 
-void fan::power_controller_task(void *param)
+uint32_t fan::get_speed()
 {
-    int count = 0;
-    float power_sum = 0;
-    float p = 0.8, i = 0.04;
-    float change_duty_cycle, diff_sum = 0;
+    return speed_count.speed_rpm;
+}
+void fan::set_target_speed(uint32_t rpm)
+{
+    pid_obj.target_val = rpm;
+}
+uint32_t fan::get_target_speed()
+{
+    return pid_obj.target_val;
+}
+
+float fan::get_voltage(void) { return this->filter_voltage; }
+float fan::get_current(void) { return this->filter_current; }
+float fan::get_power(void) { return this->filter_power; }
+void fan::main_task(void *param)
+{
+    auto do_power_pid = [&]() -> void
+    {
+        if (get_switch())
+        {
+            float change_duty_cycle = pid_obj.do_cal(get_speed());
+            set_duty_cycle(current_duty_cycle + change_duty_cycle);
+            // ESP_LOGI(tag(), "%urpm | %0.4fV %0.4fA %0.4fW | p:%0.4f i:%0.4f d:%0.4f | d %0.4f cd %0.4f",
+            //          speed_count.speed_rpm,
+            //          voltage, current, filter_power,
+            //          pid_obj.p_vote, pid_obj.i_vote, pid_obj.d_vote,
+            //          current_duty_cycle, change_duty_cycle);
+        }
+        else
+        {
+            pid_obj.reset();
+            set_duty_cycle(0);
+        }
+    };
+    auto do_count_speed = [&]() -> void
+    {
+        uint16_t pin_count = speed_count.pin_count;
+        speed_count.pin_count = 0;
+        speed_count.speed_rpm = (float)speed_count.speed_rpm * 0.75f + (float)pin_count * 1000 / main_task_cycle_ms / 2 * 60 * 0.25f;
+        // ESP_LOGI(tag(), "pin %u\n", pin_count);
+    };
     TickType_t last_wake_tick = thread_helper::get_time_tick();
     while (!thread_helper::thread_is_exit())
     {
-        thread_helper::sleep_until(last_wake_tick, 10);
-        power_sum += read_fan_power();
-        if (count++ > 10)
-        {
-            current_power = power_sum / 10;
-            float diff = diff * 0.6 + (target_power - current_power) * 0.4;
-            diff_sum += diff * 0.8;
-            diff_sum = math_helper::limit_range(diff_sum, 2, -2);
-            change_duty_cycle = diff * p + diff_sum * i;
-            set_duty_cycle(current_duty_cycle + change_duty_cycle);
-            // ESP_LOGI("controller", "fan %0.4fV %0.4fA %0.4fW target:%0.1fW DC: %0.2f CDC: %0.2f diff: %0.2f diff_sum: %0.2f", voltage, current, current_power, target_power, current_duty_cycle, change_duty_cycle, diff, diff_sum);
-            count = 0;
-            power_sum = 0;
-        }
+        thread_helper::sleep_until(last_wake_tick, main_task_cycle_ms);
+        read_power();
+        do_count_speed();
+        do_power_pid();
     }
+}
+void fan::speed_pin_isr_handler(void *arg)
+{
+    fan *fan_obj = (fan *)arg;
+    fan_obj->speed_count.pin_count += 1;
 }

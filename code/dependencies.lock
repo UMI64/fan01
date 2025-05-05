@@ -1,15 +1,17 @@
 dependencies:
   idf:
-    component_hash: null
     source:
       type: idf
-    version: 5.3.0
-  lvgl/lvgl:
-    component_hash: 2a8f619b5c2b1c7ad116c33d43dae8989c76739068f406a7e8ba9221e1085f17
+    version: 5.4.1
+  u8g2:
+    dependencies: []
     source:
-      service_url: https://api.components.espressif.com/
-      type: service
-    version: 9.1.0
-manifest_hash: a910099e0b19a0b5aa05bc75183b51e966011905ae2c68b1bb4337cd189b5c95
+      path: D:\project\fan01\code\managed_components\u8g2
+      type: local
+    version: '*'
+direct_dependencies:
+- idf
+- u8g2
+manifest_hash: da9087801b124ac46d98da85228ac1a9e2bf385e70c2508f50b01db844b34747
 target: esp32c3
-version: 1.0.0
+version: 2.0.0

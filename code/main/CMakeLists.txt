@@ -1,9 +1,3 @@
-idf_component_register(
-SRCS
-"devices/fan.cc"
-"devices/husb238.cc"
-"devices/keyboard.cc"
-"board.cc"
-"controller.cc"
-"main.cc"
-INCLUDE_DIRS ".")
+file(GLOB_RECURSE SOURCES *.cc devices/*.cc ui/*.cc)
+idf_component_register(SRCS ${SOURCES}
+                       INCLUDE_DIRS "." "./devices" "./ui")

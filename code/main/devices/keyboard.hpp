@@ -1,19 +1,29 @@
+#pragma once
 #include <helper.hpp>
 class keyboard
 {
 public:
+    typedef struct
+    {
+        uint32_t short_time = 200;
+        uint32_t long_time = 700;
+        uint32_t continue_time = 100;
+    } action_param_t;
+
     typedef enum
     {
-        press_key,
-        right_key,
-        left_key,
+        none_press = -1,
+        short_press = 0,
+        long_press = 1,
+        continue_press = 2,
+    } action;
+    typedef enum
+    {
+        press_key = 0,
+        right_key = 1,
+        left_key = 2,
     } keys;
-    typedef enum
-    {
-        short_press,
-        long_press,
-        continue_press,
-    } actions;
+    typedef std::function<void(keys key, uint32_t continue_ms, bool press, bool change)> caller_func;
 
 private:
     const static gpio_num_t d_key_pin = GPIO_NUM_10;
@@ -21,41 +31,30 @@ private:
     const static gpio_num_t a_key_pin = GPIO_NUM_6;
     typedef enum
     {
-        null,
-        down,
-        up,
-    } key_wait;
-    typedef struct
-    {
-        bool level;
-        gpio_num_t pin;
-    } key_changes;
+        down = 0,
+        up = 1,
+    } key_statue;
     struct key_obj
     {
         keys key;
         gpio_num_t pin;
-        int level = 1;
-        key_wait wait = key_wait::null;
-        TickType_t report_tick = 0;
+        uint8_t unstable = 0;
+        key_statue statue = key_statue::up;
         TickType_t changed_tick = 0;
-        TickType_t short_tick = 100;
-        TickType_t long_tick = 350;
-        TickType_t continue_tick = 800;
     } press_key_obj, right_key_obj, left_key_obj;
-    std::vector<std::function<void(keys key, actions action)>> caller_list;
-    thread_helper *message_task_handle;
-    QueueHandle_t message_queue;
-
-    static void IRAM_ATTR press_key_pin_isr_handler(void *arg);
-    static void IRAM_ATTR right_key_pin_isr_handler(void *arg);
-    static void IRAM_ATTR left_key_pin_isr_handler(void *arg);
-    void message_task(void *param);
+    thread_mutex_lock caller_lock;
+    std::vector<caller_func> caller_list;
+    thread_helper *loop_task_handle;
+    void loop_task(void *param);
 
 public:
     keyboard();
     ~keyboard();
-    const static char *key_to_name(keys key);
-    const static char *action_to_name(keyboard::actions action);
-    void register_callback(std::function<void(keys key, actions action)> caller);
-    void unregister_callback(std::function<void(keys key, actions action)> caller);
+    static const char *tag();
+    static const char *key_to_name(keys key);
+    void register_callback(caller_func caller);
+    void unregister_callback(caller_func caller);
+
+public:
+    static keyboard::action event_action(action_param_t &action_param, uint32_t continue_ms);
 };

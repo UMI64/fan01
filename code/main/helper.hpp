@@ -3,23 +3,25 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <atomic>
 #include <string.h>
 #include <stdio.h>
-#include "sdkconfig.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-#include "esp_err.h"
-#include "esp_log.h"
-#include "esp_timer.h"
-#include "nvs_flash.h"
+#include <sdkconfig.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <esp_err.h>
+#include <esp_log.h>
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_oneshot.h"
-#include "driver/gpio.h"
-#include "driver/ledc.h"
+#include "esp_adc/adc_continuous.h"
 #include "driver/i2c_master.h"
-#include "driver/uart.h"
 #include "driver/gptimer.h"
+#include "driver/ledc.h"
+#include "driver/gpio.h"
+#include "nvs_flash.h"
+#include "esp_timer.h"
+#define ONEBIT(x) (1 << x)
 
 class helper_err
 {
@@ -57,23 +59,47 @@ private:
         ((thread_helper *)param)->task_caller(((thread_helper *)param)->task_param);
         vTaskDelete(NULL);
     }
+    void init(std::function<void(void *)> caller, const char *name, void *param, uint32_t stack_depth, uint8_t prio)
+    {
+        task_caller = caller;
+        task_param = param;
+        xTaskCreate(this->caller, name, stack_depth, this, prio, &pxCreatedTask);
+        if (pxCreatedTask != NULL)
+            vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)0);
+    }
 
 public:
     thread_helper(std::function<void(void *)> caller, void *param = nullptr, std::string name = "", uint32_t stack_depth = 4096, uint8_t prio = 1)
     {
-        task_caller = caller;
-        task_param = param;
-        xTaskCreate(this->caller, name.c_str(), stack_depth, this, prio, &pxCreatedTask);
-        if (pxCreatedTask != NULL)
-            vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)0);
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, void *param = nullptr, const char *name = NULL, uint32_t stack_depth = 4096, uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, std::string name = "", void *param = nullptr, uint32_t stack_depth = 4096, uint8_t prio = 1)
+    {
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, const char *name = NULL, void *param = nullptr, uint32_t stack_depth = 4096, uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
     }
     thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, void *param = nullptr, std::string name = "", uint8_t prio = 1)
     {
-        task_caller = caller;
-        task_param = param;
-        xTaskCreate(this->caller, name.c_str(), stack_depth, this, prio, &pxCreatedTask);
-        if (pxCreatedTask != NULL)
-            vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)0);
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, void *param = nullptr, const char *name = "", uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, std::string name = "", void *param = nullptr, uint8_t prio = 1)
+    {
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, const char *name = "", void *param = nullptr, uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
     }
     ~thread_helper()
     {
@@ -129,17 +155,35 @@ public:
     {
         vSemaphoreDelete(semaphore);
     }
-    bool lock(void)
+    void lock(void)
     {
-        return xSemaphoreTake(semaphore, portMAX_DELAY);
+        xSemaphoreTake(semaphore, portMAX_DELAY);
     }
-    bool lock(uint32_t delay_ms)
+    bool try_lock(void)
     {
-        return xSemaphoreTake(semaphore, pdMS_TO_TICKS(delay_ms));
+        return xSemaphoreTake(semaphore, 0) == pdTRUE;
     }
     void unlock(void)
     {
         xSemaphoreGive(semaphore);
+    }
+};
+
+class thread_mutex_lock_guard
+{
+    friend class thread_mutex_lock;
+
+private:
+    thread_mutex_lock &mutex_;
+
+public:
+    explicit thread_mutex_lock_guard(thread_mutex_lock &mutex) : mutex_(mutex)
+    {
+        mutex_.lock();
+    }
+    ~thread_mutex_lock_guard()
+    {
+        mutex_.unlock();
     }
 };
 
@@ -181,152 +225,86 @@ public:
         ESP_ERROR_CHECK(esp_timer_stop(helper->lvgl_tick_timer));
     }
 };
-/*
-class timer_call
-{
-private:
-    typedef struct timer_callback_item_t
-    {
-        uint64_t time_to_wait_us;
-        uint64_t time_to_exec_us;
-        bool recall;
-        void *param;
-        timer_call::timer_callback cb;
-    } timer_callback_item_t;
-    std::vector<timer_callback_item_t *> callback_list;
-    gptimer_handle_t gptimer;
-    SemaphoreHandle_t timer_semaphore;
-    uint64_t all_count = 0;
-    static bool callback_list_compare(timer_callback_item_t *v1, timer_callback_item_t *v2)
-    {
-        return v1->time_to_exec_us > v2->time_to_exec_us;
-    }
-    static bool gptimer_alarm_cb(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
-    {
-        timer_call *timer_call_obj = (timer_call *)user_ctx;
-        xSemaphoreTakeFromISR(timer_call_obj->timer_semaphore, NULL);
-        gptimer_stop(timer);
-        uint64_t tick = timer_call_obj->tick_count();
-        timer_call_obj->all_count += tick;
-        for (auto it = timer_call_obj->callback_list.begin(); it != timer_call_obj->callback_list.end();)
-        {
-            timer_callback_item_t *p_item = *it;
-            if (timer_call_obj->all_count >= p_item->time_to_exec_us)
-            {
-                p_item->cb(p_item->param);
-                if (p_item->recall)
-                {
-                    p_item->time_to_exec_us = timer_call_obj->all_count + p_item->time_to_wait_us;
-                    it++;
-                }
-                else
-                    it = timer_call_obj->callback_list.erase(it);
-            }
-            else
-            {
-                it++;
-            }
-        }
-        timer_call_obj->reconfig_timer(0);
-        xSemaphoreGiveFromISR(timer_call_obj->timer_semaphore, NULL);
-        gptimer_start(timer);
-        return true;
-    }
-    void reconfig_timer(uint64_t start_count)
-    {
-        uint64_t alarm_count = 1000000; // 1s
-        std::sort(callback_list.begin(), callback_list.end(), callback_list_compare);
-        if (!callback_list.empty())
-        {
-            timer_callback_item_t *item = callback_list.front();
-            alarm_count = item->time_to_exec_us - all_count;
-        }
-        gptimer_alarm_config_t alarm_config = {};
-        alarm_config.alarm_count = alarm_count;
-        gptimer_set_raw_count(gptimer, start_count);
-        gptimer_set_alarm_action(gptimer, &alarm_config);
-    }
 
-public:
-    typedef std::function<void(void *)> timer_callback;
-    typedef void *timer_call_item;
-    timer_call()
-    {
-        timer_semaphore = xSemaphoreCreateMutex();
-
-        gptimer_config_t timer_config = {};
-        timer_config.clk_src = GPTIMER_CLK_SRC_DEFAULT;
-        timer_config.direction = GPTIMER_COUNT_UP;
-        timer_config.resolution_hz = 1 * 1000 * 1000; // 1MHz, 1 tick = 1us
-        ESP_ERROR_CHECK(gptimer_new_timer(&timer_config, &gptimer));
-
-        gptimer_alarm_config_t alarm_config = {};
-        alarm_config.reload_count = 0;
-        alarm_config.alarm_count = 1000000;
-        alarm_config.flags.auto_reload_on_alarm = true;
-        ESP_ERROR_CHECK(gptimer_set_alarm_action(gptimer, &alarm_config));
-
-        gptimer_event_callbacks_t cbs = {};
-        cbs.on_alarm = gptimer_alarm_cb;
-        ESP_ERROR_CHECK(gptimer_register_event_callbacks(gptimer, &cbs, this));
-        ESP_ERROR_CHECK(gptimer_enable(gptimer));
-        ESP_ERROR_CHECK(gptimer_start(gptimer));
-    }
-    ~timer_call()
-    {
-        vSemaphoreDelete(timer_semaphore);
-    }
-    uint64_t tick_count()
-    {
-        uint64_t tick_num;
-        gptimer_get_raw_count(gptimer, &tick_num);
-        return tick_num;
-    }
-    timer_call_item add_timer_callback(timer_callback cb, uint64_t time_to_wait_us, bool recall, void *param)
-    {
-        xSemaphoreTake(timer_semaphore, portMAX_DELAY);
-        gptimer_stop(gptimer);
-        uint64_t tick = tick_count();
-        all_count += tick;
-        timer_callback_item_t *item = (timer_callback_item_t *)pvPortMalloc(sizeof(timer_callback_item_t));
-        item->cb = cb;
-        item->param = param;
-        item->recall = recall;
-        item->time_to_wait_us = time_to_wait_us;
-        item->time_to_exec_us = all_count + time_to_wait_us;
-        callback_list.emplace_back(item);
-        reconfig_timer(0);
-        xSemaphoreGive(timer_semaphore);
-        gptimer_start(gptimer);
-        return item;
-    }
-    void del_timer_callback(timer_call_item p_item)
-    {
-        xSemaphoreTake(timer_semaphore, portMAX_DELAY);
-        gptimer_stop(gptimer);
-        uint64_t tick = tick_count();
-        all_count += tick;
-        for (auto it = callback_list.begin(); it != callback_list.end();)
-        {
-            timer_callback_item_t *_p_item = *it;
-            if (p_item == _p_item)
-            {
-                it = callback_list.erase(it);
-                reconfig_timer(0);
-                break;
-            }
-        }
-        xSemaphoreGive(timer_semaphore);
-        gptimer_start(gptimer);
-        vPortFree(p_item);
-    }
-};
-*/
 class math_helper
 {
 public:
     static float limit_range(float num, float max, float min)
     {
         return num < min ? (min) : (num > max ? max : num);
+    }
+    class pid
+    {
+    private:
+        float diff = 0;
+        float diff_sum = 0;
+        float diff_change = 0;
+
+    public:
+        float p = 0, i = 0, d = 0;
+        float i_min = 0, i_max = 0;
+        float target_val = 0;
+
+        float p_vote, i_vote, d_vote;
+        pid(float p, float i, float d, float i_min = 0, float i_max = 0) : p(p), i(i), d(d), i_min(i_min), i_max(i_max)
+        {
+        }
+        void set_target(float target_val)
+        {
+            this->target_val = target_val;
+        }
+        float do_cal(float now_val)
+        {
+            diff_change = target_val - now_val - diff;
+            diff = diff + diff_change;
+            diff_sum += diff;
+            diff_sum = math_helper::limit_range(diff_sum, i_max, i_min);
+            p_vote = diff * p;
+            i_vote = diff_sum * i;
+            d_vote = diff_change * d;
+            return p_vote + i_vote + d_vote;
+        }
+        void reset()
+        {
+            diff = 0;
+            diff_sum = 0;
+        }
+    };
+};
+
+class flag_helper
+{
+private:
+    uint32_t __flags = 0;
+
+public:
+    /* 读取mask范围内的flags是否激活
+        flags 0110  0110
+        mask  0111  0100
+        flag  0111  0100
+              false true
+    */
+    bool read_flag(uint32_t flags, uint32_t mask)
+    {
+        return (__flags & mask) == flags;
+    }
+    // 读取flags是否激活
+    bool read_flag(uint32_t flags)
+    {
+        return read_flag(flags, flags);
+    }
+    // 激活选中的flags
+    bool set_flag(uint32_t flagss)
+    {
+        bool old = read_flag(flagss);
+        __flags |= flagss;
+        return old;
+    }
+    // 清除选中的flags
+    bool unset_flag(uint32_t flagss)
+    {
+        bool old = read_flag(flagss);
+        __flags &= ~flagss;
+        return old;
     }
 };

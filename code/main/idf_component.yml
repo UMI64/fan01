@@ -1,9 +1,10 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  lvgl/lvgl: "^9.1.0"
+  u8g2:
+     path: ../managed_components\u8g2
   ## Required IDF version
   idf:
-    version: ">=4.1.0"
+    version: ">=5.4.1"
   # # Put list of dependencies here
   # # For components maintained by Espressif:
   # component: "~1.0.0"
