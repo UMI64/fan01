@@ -1,5 +1,5 @@
 #include "ui.hpp"
-ui::ui(board *board_obj) : board_obj(board_obj)
+ui::ui(controller *controller_obj) : controller_obj(controller_obj)
 {
     u8g2_SetUserPtr(&u8g2, this);
     u8g2_Setup_ssd1306_i2c_128x32_univision_f(&u8g2, U8G2_R0, byte_cb, gpio_and_delay_cb);
@@ -15,7 +15,7 @@ ui::ui(board *board_obj) : board_obj(board_obj)
     ui_window_obj->append_component(menu_page_obj->base_obj);
     ui_window_obj->set_focus(main_page_obj->base_obj);
 
-    board_obj->keyboard_obj->register_callback(std::bind(&ui::keyboard_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+    controller_obj->board_obj->keyboard_obj->register_callback(std::bind(&ui::keyboard_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     render_thread = new thread_helper(std::bind(&ui::render_task, this, std::placeholders::_1), 4096, "ui:render_task");
     manage_thread = new thread_helper(std::bind(&ui::manage_task, this, std::placeholders::_1), 4096, "ui:manage_task");
 }

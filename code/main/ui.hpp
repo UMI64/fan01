@@ -1,6 +1,6 @@
 #pragma once
 #include "helper.hpp"
-#include "board.hpp"
+#include "controller.hpp"
 #include "u8g2.h"
 #include "ui/ui_base.hpp"
 #include "ui/ui_text.hpp"
@@ -57,7 +57,7 @@ class ui
 protected:
     thread_mutex_lock render_lock;
     u8g2_t u8g2;
-    board *board_obj;
+    controller *controller_obj;
     ui_base *ui_window_obj;
     main_page *main_page_obj;
     menu_page *menu_page_obj;
@@ -150,5 +150,5 @@ private:
     void keyboard_callback(keyboard::keys key, uint32_t continue_ms, bool press, bool change);
 
 public:
-    ui(board *board_obj);
+    ui(controller *controller_obj);
 };

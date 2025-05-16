@@ -7,11 +7,12 @@
 class controller
 {
 private:
-    board *board_obj;
     ui *ui_obj;
     thread_helper *main_thread;
     void main_task(void *param);
+
 public:
+    board *board_obj;
     fan *fan_obj;
     husb238 *husb238_obj;
     keyboard *keyboard_obj;

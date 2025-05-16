@@ -31,13 +31,13 @@ void controller::run()
 {
     for (auto src_pdo_voltage : husb238::support_voltages)
     {
-        float current = board_obj->husb238_obj->read_pdo_cap(src_pdo_voltage);
+        float current = husb238_obj->read_pdo_cap(src_pdo_voltage);
         if (current != 0)
             ESP_LOGI(TAG, "available PD %uV %0.2fA", husb238::src_pdo_voltage_to_float(src_pdo_voltage), current);
     }
-    board_obj->husb238_obj->set_pdo(husb238::src_pdo_voltage::src_pdo_12v);
-    board_obj->husb238_obj->req_pdo();
-    board_obj->fan_obj->set_turn();
+    husb238_obj->set_pdo(husb238::src_pdo_voltage::src_pdo_12v);
+    husb238_obj->req_pdo();
+    fan_obj->set_turn();
     while (1)
         vTaskDelay(pdMS_TO_TICKS(30000));
 }
