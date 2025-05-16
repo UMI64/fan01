@@ -1,8 +1,10 @@
 #pragma once
 #include "helper.hpp"
+#include "board.hpp"
 class fan
 {
 private:
+    board * board_obj;
     gpio_num_t fan_power_pin = GPIO_NUM_4;
     gpio_num_t fan_pwm_pin = GPIO_NUM_13;   // GPIO_NUM_21;
     gpio_num_t fan_speed_pin = GPIO_NUM_12; // GPIO_NUM_20;
@@ -17,13 +19,6 @@ private:
         std::atomic_int16_t pin_count = 0;
         uint16_t speed_rpm = 0;
     } speed_count;
-    struct adc_channel_unit_t
-    {
-        adc_channel_t adc_channel;
-        adc_cali_handle_t adc_cali_handle;
-        adc_oneshot_chan_cfg_t adc_oneshot_chan_cfg;
-    } adc_channel_current, adc_channel_voltage;
-    adc_oneshot_unit_handle_t adc_oneshot_unit_handle;
     void set_duty_cycle(float p);
     void main_task(void *param);
     float get_duty_cycle();
@@ -37,7 +32,7 @@ public:
     float current = 0, filter_current = 0;
     float power = 0, filter_power = 0;
 
-    fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle);
+    fan(board * board_obj);
     ~fan();
     static const char *tag();
     void set_turn();

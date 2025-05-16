@@ -1,5 +1,5 @@
 #include "fan.hpp"
-fan::fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle) : adc_oneshot_unit_handle(adc_oneshot_unit_handle)
+fan::fan(board * board_obj) : board_obj(board_obj)
 {
     gpio_config_t io_conf = {};
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -30,31 +30,6 @@ fan::fan(adc_oneshot_unit_handle_t &adc_oneshot_unit_handle) : adc_oneshot_unit_
         ledc_channel_fan.hpoint = 0;
         ledc_channel_fan.flags.output_invert = 1;
         ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_fan)); // FAN
-    }
-    {
-        adc_channel_current.adc_channel = ADC_CHANNEL_0;
-        adc_channel_current.adc_oneshot_chan_cfg = {.atten = ADC_ATTEN_DB_0, .bitwidth = ADC_BITWIDTH_DEFAULT};
-        ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_oneshot_unit_handle, adc_channel_current.adc_channel, &adc_channel_current.adc_oneshot_chan_cfg));
-        adc_cali_curve_fitting_config_t adc_current_cali_config = {
-            .unit_id = ADC_UNIT_1,
-            .chan = adc_channel_current.adc_channel,
-            .atten = adc_channel_current.adc_oneshot_chan_cfg.atten,
-            .bitwidth = adc_channel_current.adc_oneshot_chan_cfg.bitwidth,
-        };
-        ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&adc_current_cali_config, &adc_channel_current.adc_cali_handle));
-    }
-    {
-        adc_channel_voltage.adc_channel = ADC_CHANNEL_1;
-        adc_channel_voltage.adc_oneshot_chan_cfg = {.atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT};
-        ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_oneshot_unit_handle, adc_channel_voltage.adc_channel, &adc_channel_voltage.adc_oneshot_chan_cfg));
-        adc_cali_curve_fitting_config_t adc_voltage_cali_config = {
-            .unit_id = ADC_UNIT_1,
-            .chan = adc_channel_voltage.adc_channel,
-            .atten = adc_channel_voltage.adc_oneshot_chan_cfg.atten,
-            .bitwidth = adc_channel_voltage.adc_oneshot_chan_cfg.bitwidth,
-
-        };
-        ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&adc_voltage_cali_config, &adc_channel_voltage.adc_cali_handle));
     }
     main_thread = new thread_helper(std::bind(&fan::main_task, this, std::placeholders::_1), "fan:main_task");
 }
@@ -107,14 +82,12 @@ float fan::get_duty_cycle(void)
 
 float fan::read_voltage()
 {
-    int raw;
-    ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_voltage.adc_cali_handle, adc_channel_voltage.adc_channel, &raw));
+    int raw=board_obj->adc_channel0_value;
     return (float)raw / 2500 * 27.5f;
 }
 float fan::read_current()
 {
-    int raw;
-    ESP_ERROR_CHECK(adc_oneshot_get_calibrated_result(adc_oneshot_unit_handle, adc_channel_current.adc_cali_handle, adc_channel_current.adc_channel, &raw));
+    int raw=board_obj->adc_channel1_value;
     return (float)raw / 2500 * 2.02f;
 }
 float fan::read_power()

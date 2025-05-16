@@ -2,5 +2,7 @@
 # in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.16)
 
+add_definitions(-DU8X8_WITH_USER_PTR)
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(FAN01)
