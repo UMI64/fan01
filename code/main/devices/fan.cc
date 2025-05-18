@@ -1,5 +1,5 @@
 #include "fan.hpp"
-fan::fan(board * board_obj) : board_obj(board_obj)
+fan::fan(board *board_obj) : board_obj(board_obj)
 {
     gpio_config_t io_conf = {};
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -80,31 +80,24 @@ float fan::get_duty_cycle(void)
     return current_duty_cycle;
 }
 
-float fan::read_voltage()
+int fan::read_voltage()
 {
-    int raw=board_obj->adc_channel0_value;
-    return (float)raw / 2500 * 27.5f;
+    int raw = board_obj->read_voltage(ADC_CHANNEL_3);
+    return raw * 27500 / 2500;
 }
-float fan::read_current()
+int fan::read_current()
 {
-    int raw=board_obj->adc_channel1_value;
-    return (float)raw / 2500 * 2.02f;
+    int raw = board_obj->read_voltage(ADC_CHANNEL_0);
+    return raw * 2020 / 2500;
 }
-float fan::read_power()
+int fan::read_power()
 {
-    uint8_t filter_count = 5;
-    float _current = 0, _voltage = 0;
-    for (int i = 0; i < filter_count; i++)
-    {
-        _current += read_current();
-        _voltage += read_voltage();
-    }
-    current = _current / filter_count;
-    voltage = _voltage / filter_count;
-    power = voltage * current;
-    filter_current = filter_current * 0.95f + current * 0.05f;
-    filter_voltage = filter_voltage * 0.95f + voltage * 0.05f;
-    filter_power = filter_power * 0.95f + power * 0.05f;
+    current = read_current();
+    voltage = read_voltage();
+    power = voltage * current / 1000;
+    filter_current = (filter_current * 3 + current) / 4;
+    filter_voltage = (filter_voltage * 3 + voltage) / 4;
+    filter_power = filter_current * filter_voltage / 1000;
     return power;
 }
 
@@ -121,17 +114,16 @@ uint32_t fan::get_target_speed()
     return pid_obj.target_val;
 }
 
-float fan::get_voltage(void) { return this->filter_voltage; }
-float fan::get_current(void) { return this->filter_current; }
-float fan::get_power(void) { return this->filter_power; }
+float fan::get_voltage(void) { return (float)this->filter_voltage / 1000; }
+float fan::get_current(void) { return (float)this->filter_current / 1000; }
+float fan::get_power(void) { return (float)this->filter_power / 1000; }
 void fan::main_task(void *param)
 {
     auto do_power_pid = [&]() -> void
     {
         if (get_switch())
         {
-            float change_duty_cycle = pid_obj.do_cal(get_speed());
-            set_duty_cycle(current_duty_cycle + change_duty_cycle);
+            set_duty_cycle(current_duty_cycle + pid_obj.do_cal(get_speed()));
             // ESP_LOGI(tag(), "%urpm | %0.4fV %0.4fA %0.4fW | p:%0.4f i:%0.4f d:%0.4f | d %0.4f cd %0.4f",
             //          speed_count.speed_rpm,
             //          voltage, current, filter_power,

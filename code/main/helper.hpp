@@ -145,15 +145,12 @@ class thread_mutex_lock
 {
 private:
     SemaphoreHandle_t semaphore;
+    StaticSemaphore_t xMutexBuffer;
 
 public:
     thread_mutex_lock(void)
     {
-        semaphore = xSemaphoreCreateMutex();
-    }
-    ~thread_mutex_lock(void)
-    {
-        vSemaphoreDelete(semaphore);
+        semaphore = xSemaphoreCreateMutexStatic(&xMutexBuffer);
     }
     void lock(void)
     {
@@ -184,6 +181,35 @@ public:
     ~thread_mutex_lock_guard()
     {
         mutex_.unlock();
+    }
+};
+
+class thread_semaphore
+{
+private:
+    SemaphoreHandle_t semaphore;
+    StaticSemaphore_t xSemaphoreBuffer;
+
+public:
+    thread_semaphore(void)
+    {
+        semaphore = xSemaphoreCreateBinaryStatic(&xSemaphoreBuffer);
+    }
+    bool wait()
+    {
+        xSemaphoreTake(semaphore, portMAX_DELAY) == pdTRUE;
+    }
+    bool wait(uint32_t wait_time_ms) // pdTRUE: 成功等待 pdFALSE: 超时
+    {
+        xSemaphoreTake(semaphore, pdMS_TO_TICKS(wait_time_ms)) == pdTRUE;
+    }
+    bool try_wait(void) // pdTRUE: 成功等待 pdFALSE: 超时
+    {
+        return xSemaphoreTake(semaphore, 0) == pdTRUE;
+    }
+    void unlock(void)
+    {
+        xSemaphoreGive(semaphore);
     }
 };
 

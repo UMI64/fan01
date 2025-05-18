@@ -1,7 +1,6 @@
 ## IDF Component Manager Manifest File
 dependencies:
   u8g2:
-    git: https://gitcode.com/gh_mirrors/u8/u8g2.git
-    version: master
+    path: ../u8g2
   idf:
     version: ">=5.4.1"

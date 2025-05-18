@@ -135,7 +135,7 @@ private:
         case U8X8_MSG_BYTE_END_TRANSFER:
         {
             ESP_LOGD(TAG, "End I2C transfer %u.", pui->i2c_write_data_size);
-            i2c_master_transmit(pui->board_obj->lcd_obj->i2c_master_dev_handle, pui->i2c_write_data, pui->i2c_write_data_size, 100);
+            i2c_master_transmit(pui->controller_obj->lcd_obj->i2c_master_dev_handle, pui->i2c_write_data, pui->i2c_write_data_size, 100);
             break;
         }
 

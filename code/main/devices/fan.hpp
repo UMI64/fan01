@@ -22,15 +22,15 @@ private:
     void set_duty_cycle(float p);
     void main_task(void *param);
     float get_duty_cycle();
-    float read_voltage();
-    float read_current();
-    float read_power();
+    int read_voltage();
+    int read_current();
+    int read_power();
     static void IRAM_ATTR speed_pin_isr_handler(void *arg);
 
 public:
-    float voltage = 0, filter_voltage = 0;
-    float current = 0, filter_current = 0;
-    float power = 0, filter_power = 0;
+    int voltage = 0, filter_voltage = 0;
+    int current = 0, filter_current = 0;
+    int power = 0, filter_power = 0;
 
     fan(board * board_obj);
     ~fan();

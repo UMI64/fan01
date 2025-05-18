@@ -9,7 +9,6 @@ controller::controller()
     lcd_obj = new lcd(board_obj->i2c_master_bus_handle);
     husb238_obj = new husb238(board_obj->i2c_master_bus_handle);
     keyboard_obj = new keyboard();
-    ui_obj = new ui(board_obj);
     main_thread = new thread_helper(std::bind(&controller::main_task, this, std::placeholders::_1), "controller:main_task");
 }
 controller::~controller()
@@ -38,6 +37,11 @@ void controller::run()
     husb238_obj->set_pdo(husb238::src_pdo_voltage::src_pdo_12v);
     husb238_obj->req_pdo();
     fan_obj->set_turn();
+    ui ui(this);
     while (1)
-        vTaskDelay(pdMS_TO_TICKS(30000));
+    {
+        TickType_t last_wake_tick = thread_helper::get_time_tick();
+        
+        thread_helper::sleep_until(last_wake_tick, 100);
+    }
 }

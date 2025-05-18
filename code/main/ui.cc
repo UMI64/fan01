@@ -15,7 +15,7 @@ ui::ui(controller *controller_obj) : controller_obj(controller_obj)
     ui_window_obj->append_component(menu_page_obj->base_obj);
     ui_window_obj->set_focus(main_page_obj->base_obj);
 
-    controller_obj->board_obj->keyboard_obj->register_callback(std::bind(&ui::keyboard_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
+    controller_obj->keyboard_obj->register_callback(std::bind(&ui::keyboard_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     render_thread = new thread_helper(std::bind(&ui::render_task, this, std::placeholders::_1), 4096, "ui:render_task");
     manage_thread = new thread_helper(std::bind(&ui::manage_task, this, std::placeholders::_1), 4096, "ui:manage_task");
 }
@@ -38,11 +38,11 @@ void ui::manage_task(void *param)
     {
         {
             thread_mutex_lock_guard lock(render_lock);
-            main_page_obj->ui_voltage_obj->set_ascii_str("V: %.2fV", board_obj->fan_obj->get_voltage());
-            main_page_obj->ui_current_obj->set_ascii_str("C: %.2fA", board_obj->fan_obj->get_current());
-            main_page_obj->ui_power_obj->set_ascii_str("P: %.2fW", board_obj->fan_obj->get_power());
-            main_page_obj->ui_target_speed_obj->set_ascii_str("TS: %uRPM", board_obj->fan_obj->get_target_speed());
-            main_page_obj->ui_speed_obj->set_ascii_str("RS: %uRPM", board_obj->fan_obj->get_speed());
+            main_page_obj->ui_voltage_obj->set_ascii_str("U: %.2fV", controller_obj->fan_obj->get_voltage());
+            main_page_obj->ui_current_obj->set_ascii_str("I: %.2fA", controller_obj->fan_obj->get_current());
+            main_page_obj->ui_power_obj->set_ascii_str("P: %.2fW", controller_obj->fan_obj->get_power());
+            main_page_obj->ui_target_speed_obj->set_ascii_str("TS: %uRPM", controller_obj->fan_obj->get_target_speed());
+            main_page_obj->ui_speed_obj->set_ascii_str("RS: %uRPM", controller_obj->fan_obj->get_speed());
         }
         thread_helper::sleep(200);
     }
@@ -57,15 +57,15 @@ main_page::main_page(ui *ui_obj) : ui_obj(ui_obj)
 {
     base_obj = new ui_base(&ui_obj->u8g2, 0, 0, 128, 32);
     base_obj->set_keyevent_cb(std::bind(&main_page::key_event_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-    ui_voltage_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1, "V: -V"));
-    ui_current_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1 + 10, "C: -A"));
+    ui_voltage_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1, "U: -V"));
+    ui_current_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1 + 10, "I: -A"));
     ui_power_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1 + 10 + 10, "P: -/-W"));
     ui_target_speed_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 63, 0 + 1, "TS: -RPM"));
     ui_speed_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 63, 0 + 1 + 10, "RS: -RPM"));
 }
 bool main_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press, bool change)
 {
-    fan *fan_obj = ui_obj->board_obj->fan_obj;
+    fan *fan_obj = ui_obj->controller_obj->fan_obj;
     auto change_fan_speed = [&](int change_speed)
     {
         fan_obj->set_target_speed(math_helper::limit_range((float)fan_obj->get_target_speed() + change_speed, 8000, 0));
