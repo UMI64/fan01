@@ -6,8 +6,7 @@
 ├── main
 │   ├── CMakeLists.txt
 │   └── main.c
-├── managed_components
-│   ├── u8g2
+│── u8g2
 └── README.md                  This is the file you are currently reading
 ```
-目前工程依赖u8g2库(https://github.com/olikraus/u8g2.git)
+工程依赖u8g2库(https://github.com/olikraus/u8g2.git)(https://gitcode.com/gh_mirrors/u8/u8g2.git)

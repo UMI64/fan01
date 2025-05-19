@@ -20,10 +20,10 @@ void ui_button::set_font(const uint8_t *font)
     front = u8g2_font_6x10_mf;
 }
 
-int ui_button::render(ui_base *parent)
+int ui_button::render()
 {
     u8g2_SetFontMode(u8g2, 1);
     u8g2_SetFont(u8g2, front);
-    u8g2_DrawStr(u8g2, absolute_x, absolute_y, ascii_buffer);
+    u8g2_DrawStr(u8g2, absolute_postion_x, absolute_postion_y, ascii_buffer);
     return 0;
 }

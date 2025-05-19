@@ -1,24 +1,38 @@
 #include "ui_base.hpp"
 ui_base::ui_base(u8g2_t *u8g2) : u8g2(u8g2)
 {
+    this->postion_x.align = left_align;
+    this->postion_y.align = up_align;
+    this->width.percentage = 100;
+    this->width.type = percentage_length;
+    this->height.percentage = 100;
+    this->height.type = percentage_length;
     set_flag(this, visible); // 默认可见
     set_focus(this);
 }
 ui_base::ui_base(u8g2_t *u8g2, int x, int y) : u8g2(u8g2)
 {
-    relative_x = x;
-    relative_y = y;
-    absolute_x = x;
-    absolute_y = y;
+    this->postion_x.pix = x;
+    this->postion_x.align = none_align;
+    this->postion_y.pix = x;
+    this->postion_y.align = none_align;
+    this->width.percentage = 100;
+    this->width.type = percentage_length;
+    this->height.percentage = 100;
+    this->height.type = percentage_length;
     set_flag(this, visible); // 默认可见
     set_focus(this);
 }
-ui_base::ui_base(u8g2_t *u8g2, int x, int y, int width, int height) : u8g2(u8g2), width(width), height(height)
+ui_base::ui_base(u8g2_t *u8g2, int x, int y, int width, int height) : u8g2(u8g2)
 {
-    relative_x = x;
-    relative_y = y;
-    absolute_x = x;
-    absolute_y = y;
+    this->postion_x.pix = x;
+    this->postion_x.align = none_align;
+    this->postion_y.pix = x;
+    this->postion_y.align = none_align;
+    this->width.pix = width;
+    this->width.type = pix_length;
+    this->height.pix = height;
+    this->height.type = pix_length;
     set_flag(this, visible); // 默认可见
     set_focus(this);
 }
@@ -49,7 +63,7 @@ void ui_base::set_keyevent_cb(key_event_cb_t key_event_cb)
 {
     this->key_event_cb = key_event_cb;
 }
-int ui_base::render(ui_base *parent)
+int ui_base::render()
 {
     return 0;
 }
@@ -74,18 +88,75 @@ bool ui_base::unset_flag(ui_base *ui_base, uint32_t flag)
     ui_base->flags &= ~flag;
     return old;
 }
-void ui_base::forward_render(ui_base *parent, ui_base *self)
+void ui_base::forward_render(ui_base *ui_base)
 {
-    if (parent)
-    {
-        self->absolute_x = parent->absolute_x + self->relative_x;
-        self->absolute_y = parent->absolute_y + self->relative_y;
+    { // 计算位置
+        if (ui_base->parent)
+        {
+            int offset_x, offset_y;
+            switch (ui_base->postion_x.align)
+            {
+            case left_align:
+                offset_x = 0;
+                break;
+            case right_align:
+                offset_x = 0;
+                break;
+            case center_align:
+                offset_x = 0;
+                break;
+            default:
+                offset_x = ui_base->postion_x.pix;
+            }
+            switch (ui_base->postion_y.align)
+            {
+            case up_align:
+                offset_y = 0;
+                break;
+            case down_align:
+                offset_y = 0;
+                break;
+            case center_align:
+                offset_y = 0;
+                break;
+            default:
+                offset_y = ui_base->postion_y.pix;
+            }
+            ui_base->absolute_postion_x = ui_base->parent->absolute_postion_x + offset_x;
+            ui_base->absolute_postion_y = ui_base->parent->absolute_postion_y + offset_y;
+        }
+        else
+        {
+            ui_base->absolute_postion_x = ui_base->postion_x.pix;
+            ui_base->absolute_postion_y = ui_base->postion_y.pix;
+        }
     }
-    self->render(parent);
-    for (auto child : self->childs)
+    { // 计算长宽
+        if (ui_base->width.type == percentage_length)
+            ui_base->absolute_width = ui_base->parent ? (ui_base->parent->absolute_width * ui_base->width.percentage / 100) : (0);
+        else
+            ui_base->absolute_width = ui_base->width.pix;
+        if (ui_base->height.type == percentage_length)
+            ui_base->absolute_height = ui_base->parent ? (ui_base->parent->absolute_height * ui_base->height.percentage / 100) : (0);
+        else
+            ui_base->absolute_height = ui_base->height.pix;
+    }
+
+    switch (ui_base->width.type)
+    {
+    case pix_length:
+        ui_base->absolute_width = ui_base->width.pix;
+        break;
+    case percentage_length:
+        ui_base->absolute_width = ui_base->width.pix;
+        break;
+    }
+
+    ui_base->render();
+    for (auto child : ui_base->childs)
     {
         if (read_flag(child, visible, hidden | visible))
-            forward_render(self, child);
+            forward_render(child);
         else
             break;
     }
@@ -107,13 +178,35 @@ void ui_base::back_forward_keyevent(ui_base *ui_base, uint32_t key, uint32_t key
     if (ui_base->parent != nullptr)
         back_forward_keyevent(ui_base->parent, key, key_continue_ms, press, change);
 }
+void ui_base::set_postion(uint32_t x, uint32_t y, ui_align_type align_x, ui_align_type align_y)
+{
+    this->postion_x.pix = x;
+    this->postion_x.align = align_x;
+    this->postion_y.pix = y;
+    this->postion_y.align = align_y;
+}
 void ui_base::set_postion(uint32_t x, uint32_t y)
 {
-    this->relative_x = x;
-    this->relative_y = y;
+    this->postion_x.pix = x;
+    this->postion_x.align = none_align;
+    this->postion_y.pix = y;
+    this->postion_y.align = none_align;
 }
-void ui_base::set_size(uint32_t width, uint32_t height)
+void ui_base::set_postion(ui_align_type align_x, ui_align_type align_y)
 {
-    this->width = width;
-    this->height = height;
+    this->postion_x.align = align_x;
+    this->postion_y.align = align_y;
+}
+void ui_base::set_size(uint32_t width, uint32_t height, ui_length_type width_type, ui_length_type height_type)
+{
+    this->width.type = width_type;
+    if (this->width.type == percentage_length)
+        this->width.percentage = width;
+    else
+        this->width.pix = width;
+    this->height.type = height_type;
+    if (this->height.type == percentage_length)
+        this->height.percentage = height;
+    else
+        this->height.pix = height;
 }

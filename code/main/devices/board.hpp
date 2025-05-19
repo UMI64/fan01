@@ -1,10 +1,13 @@
 #pragma once
 #include <helper.hpp>
+#undef TAG
+#define TAG "board"
 class board
 {
 #define ADC_SAMPLE_DEEP 256
+#define ADC_SAMPLE_CHANNEL_NUM 3
 private:
-    thread_semaphore adc_filter_semaphore;
+    thread_helper *adc_filter_task_handle;
     void i2c_init(void)
     {
         i2c_master_bus_config_t i2c_master_bus_config = {};
@@ -28,8 +31,9 @@ private:
         adc_continuous_config_t dig_cfg;
         adc_continuous_evt_cbs_t adc_continuous_evt_cbs;
         adc_cali_curve_fitting_config_t adc_cali_config;
-        adc_config.max_store_buf_size = 256;
-        adc_config.conv_frame_size = 64;
+        memset(adc_channel_value, 0, sizeof(adc_channel_value));
+        adc_config.conv_frame_size = SOC_ADC_DIGI_DATA_BYTES_PER_CONV * channel_num * ADC_SAMPLE_DEEP;
+        adc_config.max_store_buf_size = adc_config.conv_frame_size;
         adc_config.flags.flush_pool = 0;
         // 风扇电流采样
         adc_pattern[0].atten = adc_atten;
@@ -69,6 +73,7 @@ private:
         ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&adc_cali_config, &adc_channel_value[1].adc_cali_handle));
         adc_cali_config.chan = (adc_channel_t)adc_pattern[2].channel;
         ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&adc_cali_config, &adc_channel_value[2].adc_cali_handle));
+        adc_filter_task_handle = new thread_helper(std::bind(&board::adc_filter_task, this), TAG ":adc_filter_task");
         ESP_ERROR_CHECK(adc_continuous_start(adc_continuous_handle));
     }
     void pwm_init(void)
@@ -90,6 +95,8 @@ private:
             ret = nvs_flash_init();
         }
         ESP_ERROR_CHECK(ret);
+        nvs_handle = nvs::open_nvs_handle("storage", NVS_READWRITE, &ret);
+        ESP_ERROR_CHECK(ret);
     }
     static int adc_channel_to_array(adc_channel_t channel)
     {
@@ -109,22 +116,38 @@ private:
     {
         BaseType_t mustYield = pdFALSE;
         board *board_obj = (board *)user_data;
-        for (int i = 0; i < edata->size; i += SOC_ADC_DIGI_RESULT_BYTES)
-        {
-            adc_digi_output_data_t *p = (adc_digi_output_data_t *)&edata->conv_frame_buffer[i];
-            struct adc_value_t *adc_value = &board_obj->adc_channel_value[board_obj->adc_channel_to_array((adc_channel_t)(p)->type2.channel)];
-            adc_value->value[adc_value->value_index] = (p)->type2.data;
-            adc_value->value_index = (adc_value->value_index + 1) % ADC_SAMPLE_DEEP;
-        }
+        ESP_ERROR_CHECK(adc_continuous_stop(handle));
+        board_obj->adc_filter_task_handle->notify_isr(&mustYield);
+        // for (int i = 0; i < edata->size; i += SOC_ADC_DIGI_RESULT_BYTES)
+        // {
+        //     adc_digi_output_data_t *p = (adc_digi_output_data_t *)&edata->conv_frame_buffer[i];
+        //     struct adc_value_t *adc_value = &board_obj->adc_channel_value[board_obj->adc_channel_to_array((adc_channel_t)(p)->type2.channel)];
+        //     adc_value->value[adc_value->value_index] = (p)->type2.data;
+        //     adc_value->value_index = (adc_value->value_index + 1) % ADC_SAMPLE_DEEP;
+        // }
         return mustYield;
     }
     int adc_filter_task()
     {
+        uint8_t value[ADC_SAMPLE_DEEP * ADC_SAMPLE_CHANNEL_NUM];
         while (!thread_helper::thread_is_exit())
         {
-            if (adc_filter_semaphore.wait(10))
+            uint32_t out_length = 0;
+            if (adc_continuous_read(adc_continuous_handle, value, sizeof(value), &out_length, 50) == ESP_OK)
             {
-                adc_continuous_read(adc_continuous_handle,)
+                for (int i = 0; i < out_length; i += SOC_ADC_DIGI_RESULT_BYTES)
+                {
+                    adc_digi_output_data_t *p = (adc_digi_output_data_t *)&value[i];
+                    struct adc_value_t *adc_value = &adc_channel_value[adc_channel_to_array((adc_channel_t)(p)->type2.channel)];
+                    adc_value->__temp_value += (p)->type2.data;
+                    adc_value->__temp_count++;
+                }
+                for (int i = 0; i < ADC_SAMPLE_CHANNEL_NUM; i++)
+                {
+                    adc_channel_value[i].filter_value = adc_channel_value[i].__temp_value / adc_channel_value[i].__temp_count;
+                    adc_channel_value[i].__temp_count = 0;
+                    adc_channel_value[i].__temp_value = 0;
+                }
                 ESP_ERROR_CHECK(adc_continuous_start(adc_continuous_handle));
             }
         }
@@ -134,10 +157,10 @@ private:
 public:
     struct adc_value_t
     {
-        uint32_t value_index = 0;
-        uint16_t value[ADC_SAMPLE_DEEP];
-        uint16_t filter_value;
         adc_cali_handle_t adc_cali_handle;
+        uint32_t __temp_value;
+        uint32_t __temp_count;
+        uint16_t filter_value;
     } adc_channel_value[3];
 
 public:
@@ -145,6 +168,7 @@ public:
     gpio_num_t scl_pin = GPIO_NUM_8;
     adc_continuous_handle_t adc_continuous_handle;
     i2c_master_bus_handle_t i2c_master_bus_handle;
+    std::unique_ptr<nvs::NVSHandle> nvs_handle;
 
     board();
     ~board();
@@ -156,7 +180,7 @@ public:
         if (array_index >= 0)
         {
             struct adc_value_t *adc_value = &adc_channel_value[array_index];
-            adc_cali_raw_to_voltage(adc_value->adc_cali_handle, adc_value->value[adc_value->value_index], &voltage);
+            adc_cali_raw_to_voltage(adc_value->adc_cali_handle, adc_value->filter_value, &voltage);
         }
         return voltage;
     }

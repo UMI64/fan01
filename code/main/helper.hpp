@@ -12,6 +12,9 @@
 #include <freertos/semphr.h>
 #include <esp_err.h>
 #include <esp_log.h>
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "nvs_handle.hpp"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_continuous.h"
@@ -106,6 +109,14 @@ public:
         if (pxCreatedTask != NULL)
             vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)1);
     }
+    void notify(void)
+    {
+        xTaskNotifyGive(pxCreatedTask);
+    }
+    void notify_isr(BaseType_t *mustYield)
+    {
+        vTaskNotifyGiveFromISR(pxCreatedTask, mustYield);
+    }
     static bool thread_is_exit()
     {
         void *value = pvTaskGetThreadLocalStoragePointer(NULL, 0);
@@ -197,19 +208,23 @@ public:
     }
     bool wait()
     {
-        xSemaphoreTake(semaphore, portMAX_DELAY) == pdTRUE;
+        return xSemaphoreTake(semaphore, portMAX_DELAY) == pdTRUE;
     }
     bool wait(uint32_t wait_time_ms) // pdTRUE: 成功等待 pdFALSE: 超时
     {
-        xSemaphoreTake(semaphore, pdMS_TO_TICKS(wait_time_ms)) == pdTRUE;
+        return xSemaphoreTake(semaphore, pdMS_TO_TICKS(wait_time_ms)) == pdTRUE;
     }
     bool try_wait(void) // pdTRUE: 成功等待 pdFALSE: 超时
     {
         return xSemaphoreTake(semaphore, 0) == pdTRUE;
     }
-    void unlock(void)
+    bool gave(void)
     {
-        xSemaphoreGive(semaphore);
+        return xSemaphoreGive(semaphore) == pdTRUE;
+    }
+    bool gave_isr(BaseType_t *mustYield)
+    {
+        return xSemaphoreGiveFromISR(semaphore, mustYield) == pdTRUE;
     }
 };
 

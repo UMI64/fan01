@@ -25,7 +25,7 @@ void ui::render_task(void *param)
     {
         {
             thread_mutex_lock_guard lock(render_lock);
-            ui_base::forward_render(nullptr, ui_window_obj);
+            ui_base::forward_render(ui_window_obj);
             u8g2_SendBuffer(&u8g2);
             u8g2_ClearBuffer(&u8g2);
         }
@@ -135,7 +135,12 @@ menu_page::menu_page(ui *ui_obj) : ui_obj(ui_obj)
 {
     base_obj = new ui_base(&ui_obj->u8g2, 0, -32, 128, 32);
     base_obj->set_keyevent_cb(std::bind(&menu_page::key_event_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-    test_button_obj = (ui_button *)base_obj->append_component(new ui_button(&ui_obj->u8g2, 5, 14, "config"));
+    config_fan_speed_on_start_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "startup speed:"));
+    config_fan_speed_on_start_value_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "-"));
+    config_min_pbo_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "min pbo:"));
+    config_min_pbo_text_value_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "-"));
+    config_max_pbo_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "max pbo:"));
+    config_max_pbo_text_value_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "-"));
 }
 bool menu_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press, bool change)
 {

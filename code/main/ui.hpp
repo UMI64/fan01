@@ -42,7 +42,12 @@ private:
 
 protected:
     ui_base *base_obj = nullptr;
-    ui_button *test_button_obj = nullptr;
+    ui_text *config_fan_speed_on_start_text_obj = nullptr;
+    ui_text *config_fan_speed_on_start_value_text_obj = nullptr;
+    ui_text *config_min_pbo_text_obj = nullptr;
+    ui_text *config_min_pbo_text_value_obj = nullptr;
+    ui_text *config_max_pbo_text_obj = nullptr;
+    ui_text *config_max_pbo_text_value_obj = nullptr;
 
 public:
     menu_page(ui *ui_obj);

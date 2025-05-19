@@ -13,9 +13,9 @@ class ui_text : public ui_base
 private:
     char ascii_buffer[256] = {0};
     uint8_t const *front;
-    int render(ui_base *parent);
-    ui_base::align front_horizontal_align;
-    ui_base::align front_vertical_align;
+    int render();
+    ui_base::ui_align_type front_horizontal_align;
+    ui_base::ui_align_type front_vertical_align;
 
 public:
     ui_text(u8g2_t *u8g2, uint32_t x = 0, uint32_t y = 0, char const *ascii_str = nullptr);

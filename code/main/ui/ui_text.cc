@@ -22,14 +22,14 @@ void ui_text::set_font(const uint8_t *font)
     front = u8g2_font_6x10_mf;
 }
 
-int ui_text::render(ui_base *parent)
+int ui_text::render()
 {
-    int text_x = absolute_x;
-    int text_y = absolute_y + u8g2_GetMaxCharHeight(u8g2);
-    if (front_vertical_align == center_align && height > u8g2_GetMaxCharHeight(u8g2))
-        text_y += (height - u8g2_GetMaxCharHeight(u8g2)) / 2;
-    else if (front_vertical_align == down_align && height > u8g2_GetMaxCharHeight(u8g2))
-        text_y += height - u8g2_GetMaxCharHeight(u8g2);
+    int text_x = absolute_postion_x;
+    int text_y = absolute_postion_y + u8g2_GetMaxCharHeight(u8g2);
+    if (front_vertical_align == center_align && absolute_height > u8g2_GetMaxCharHeight(u8g2))
+        text_y += (absolute_height - u8g2_GetMaxCharHeight(u8g2)) / 2;
+    else if (front_vertical_align == down_align && absolute_height > u8g2_GetMaxCharHeight(u8g2))
+        text_y += absolute_height - u8g2_GetMaxCharHeight(u8g2);
     u8g2_SetFontMode(u8g2, 1);
     u8g2_SetFont(u8g2, front);
     u8g2_DrawStr(u8g2, text_x, text_y, ascii_buffer);
