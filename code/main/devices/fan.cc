@@ -49,12 +49,12 @@ void fan::set_switch(bool sw)
         fan_power_switch = sw;
         if (fan_power_switch)
         {
-            ESP_LOGI(tag(), "set power 0");
+            ESP_LOGI(tag(), "set power on");
             gpio_set_level(fan_power_pin, 0);
         }
         else
         {
-            ESP_LOGI(tag(), "set power 1");
+            ESP_LOGI(tag(), "set power off");
             gpio_set_level(fan_power_pin, 1);
         }
     }

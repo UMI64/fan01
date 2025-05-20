@@ -74,7 +74,6 @@ private:
         adc_cali_config.chan = (adc_channel_t)adc_pattern[2].channel;
         ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&adc_cali_config, &adc_channel_value[2].adc_cali_handle));
         adc_filter_task_handle = new thread_helper(std::bind(&board::adc_filter_task, this), TAG ":adc_filter_task");
-        ESP_ERROR_CHECK(adc_continuous_start(adc_continuous_handle));
     }
     void pwm_init(void)
     {
@@ -116,7 +115,6 @@ private:
     {
         BaseType_t mustYield = pdFALSE;
         board *board_obj = (board *)user_data;
-        ESP_ERROR_CHECK(adc_continuous_stop(handle));
         board_obj->adc_filter_task_handle->notify_isr(&mustYield);
         // for (int i = 0; i < edata->size; i += SOC_ADC_DIGI_RESULT_BYTES)
         // {
@@ -130,6 +128,7 @@ private:
     int adc_filter_task()
     {
         uint8_t value[ADC_SAMPLE_DEEP * ADC_SAMPLE_CHANNEL_NUM];
+        ESP_ERROR_CHECK(adc_continuous_start(adc_continuous_handle));
         while (!thread_helper::thread_is_exit())
         {
             uint32_t out_length = 0;
@@ -148,7 +147,6 @@ private:
                     adc_channel_value[i].__temp_count = 0;
                     adc_channel_value[i].__temp_value = 0;
                 }
-                ESP_ERROR_CHECK(adc_continuous_start(adc_continuous_handle));
             }
         }
         return 0;

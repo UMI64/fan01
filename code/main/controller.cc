@@ -28,7 +28,7 @@ void controller::main_task(void *param)
 }
 void controller::run()
 {
-    uint8_t pbo_voltage = husb238::src_pdo_voltage::src_pdo_12v;
+    uint8_t pbo_voltage = husb238::src_pdo_voltage::src_pdo_20v;
     uint8_t fan_speed_use_storeg = false;
     uint16_t fan_speed = 0;
     board_obj->nvs_handle->get_item("pbo_voltage", pbo_voltage);

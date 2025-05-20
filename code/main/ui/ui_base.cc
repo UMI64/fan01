@@ -14,7 +14,7 @@ ui_base::ui_base(u8g2_t *u8g2, int x, int y) : u8g2(u8g2)
 {
     this->postion_x.pix = x;
     this->postion_x.align = none_align;
-    this->postion_y.pix = x;
+    this->postion_y.pix = y;
     this->postion_y.align = none_align;
     this->width.percentage = 100;
     this->width.type = percentage_length;
@@ -38,6 +38,7 @@ ui_base::ui_base(u8g2_t *u8g2, int x, int y, int width, int height) : u8g2(u8g2)
 }
 ui_base *ui_base::append_component(ui_base *ui_component)
 {
+    ui_component->parent = this;
     childs.push_back(ui_component);
     return ui_component;
 }
@@ -49,6 +50,7 @@ ui_base *ui_base::remove_component(ui_base *ui_component)
         if (*it == ui_component)
         {
             ret = *it;
+            ret->parent = nullptr;
             childs.erase(it);
             break;
         }
@@ -140,16 +142,6 @@ void ui_base::forward_render(ui_base *ui_base)
             ui_base->absolute_height = ui_base->parent ? (ui_base->parent->absolute_height * ui_base->height.percentage / 100) : (0);
         else
             ui_base->absolute_height = ui_base->height.pix;
-    }
-
-    switch (ui_base->width.type)
-    {
-    case pix_length:
-        ui_base->absolute_width = ui_base->width.pix;
-        break;
-    case percentage_length:
-        ui_base->absolute_width = ui_base->width.pix;
-        break;
     }
 
     ui_base->render();

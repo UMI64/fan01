@@ -14,7 +14,9 @@ ui::ui(controller *controller_obj) : controller_obj(controller_obj)
     ui_window_obj->append_component(main_page_obj->base_obj);
     ui_window_obj->append_component(menu_page_obj->base_obj);
     ui_window_obj->set_focus(main_page_obj->base_obj);
-
+    main_page_obj->base_obj->set_postion(0, 0);
+    menu_page_obj->base_obj->set_postion(0, -32);
+    
     controller_obj->keyboard_obj->register_callback(std::bind(&ui::keyboard_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     render_thread = new thread_helper(std::bind(&ui::render_task, this, std::placeholders::_1), 4096, "ui:render_task");
     manage_thread = new thread_helper(std::bind(&ui::manage_task, this, std::placeholders::_1), 4096, "ui:manage_task");
@@ -133,7 +135,7 @@ bool main_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press,
 
 menu_page::menu_page(ui *ui_obj) : ui_obj(ui_obj)
 {
-    base_obj = new ui_base(&ui_obj->u8g2, 0, -32, 128, 32);
+    base_obj = new ui_base(&ui_obj->u8g2, 0, 0, 128, 32);
     base_obj->set_keyevent_cb(std::bind(&menu_page::key_event_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     config_fan_speed_on_start_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "startup speed:"));
     config_fan_speed_on_start_value_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "-"));
