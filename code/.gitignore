@@ -1,6 +1,6 @@
 .devcontainer/
 .vscode/
-managed_components/
+u8g2
 build/
 dependencies.lock
 sdkconfig.old
