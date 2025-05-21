@@ -35,7 +35,7 @@ public:
     fan(board * board_obj);
     ~fan();
     static const char *tag();
-    void set_turn();
+    void turn_switch();
     void set_switch(bool sw);
     bool get_switch();
 

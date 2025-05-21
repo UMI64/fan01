@@ -31,6 +31,7 @@ fan::fan(board *board_obj) : board_obj(board_obj)
         ledc_channel_fan.flags.output_invert = 1;
         ESP_ERROR_CHECK(ledc_channel_config(&ledc_channel_fan)); // FAN
     }
+    gpio_set_level(fan_power_pin, 0);
     main_thread = new thread_helper(std::bind(&fan::main_task, this, std::placeholders::_1), "fan:main_task");
 }
 fan::~fan()
@@ -48,22 +49,16 @@ void fan::set_switch(bool sw)
     {
         fan_power_switch = sw;
         if (fan_power_switch)
-        {
             ESP_LOGI(tag(), "set power on");
-            gpio_set_level(fan_power_pin, 0);
-        }
         else
-        {
             ESP_LOGI(tag(), "set power off");
-            gpio_set_level(fan_power_pin, 1);
-        }
     }
 }
 bool fan::get_switch()
 {
     return fan_power_switch;
 }
-void fan::set_turn()
+void fan::turn_switch()
 {
     set_switch(!fan_power_switch);
 }

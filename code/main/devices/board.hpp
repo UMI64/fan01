@@ -4,7 +4,7 @@
 #define TAG "board"
 class board
 {
-#define ADC_SAMPLE_DEEP 256
+#define ADC_SAMPLE_DEEP 1000
 #define ADC_SAMPLE_CHANNEL_NUM 3
 private:
     thread_helper *adc_filter_task_handle;
@@ -53,7 +53,7 @@ private:
 
         dig_cfg.pattern_num = channel_num;
         dig_cfg.adc_pattern = adc_pattern;
-        dig_cfg.sample_freq_hz = 80 * 1000;
+        dig_cfg.sample_freq_hz = 30000;
         dig_cfg.conv_mode = ADC_CONV_SINGLE_UNIT_1;
         dig_cfg.format = ADC_DIGI_OUTPUT_FORMAT_TYPE2;
 

@@ -16,7 +16,7 @@ ui::ui(controller *controller_obj) : controller_obj(controller_obj)
     ui_window_obj->set_focus(main_page_obj->base_obj);
     main_page_obj->base_obj->set_postion(0, 0);
     menu_page_obj->base_obj->set_postion(0, -32);
-    
+
     controller_obj->keyboard_obj->register_callback(std::bind(&ui::keyboard_callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     render_thread = new thread_helper(std::bind(&ui::render_task, this, std::placeholders::_1), 4096, "ui:render_task");
     manage_thread = new thread_helper(std::bind(&ui::manage_task, this, std::placeholders::_1), 4096, "ui:manage_task");
@@ -27,11 +27,11 @@ void ui::render_task(void *param)
     {
         {
             thread_mutex_lock_guard lock(render_lock);
-            ui_base::forward_render(ui_window_obj);
+            ui_base::forward_render(ui_window_obj, 10);
             u8g2_SendBuffer(&u8g2);
             u8g2_ClearBuffer(&u8g2);
         }
-        thread_helper::sleep(50); // 每隔50ms执行一次渲染和刷新
+        thread_helper::sleep(10); // 每隔50ms执行一次渲染和刷新
     }
 }
 void ui::manage_task(void *param)
@@ -59,11 +59,12 @@ main_page::main_page(ui *ui_obj) : ui_obj(ui_obj)
 {
     base_obj = new ui_base(&ui_obj->u8g2, 0, 0, 128, 32);
     base_obj->set_keyevent_cb(std::bind(&main_page::key_event_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-    ui_voltage_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1, "U: -V"));
-    ui_current_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1 + 10, "I: -A"));
-    ui_power_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 0 + 1 + 10 + 10, "P: -/-W"));
-    ui_target_speed_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 63, 0 + 1, "TS: -RPM"));
-    ui_speed_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 63, 0 + 1 + 10, "RS: -RPM"));
+
+    ui_voltage_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 0, 0, "U: -V"));
+    ui_current_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 0, 10, "I: -A"));
+    ui_power_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 0, 21, "P: -/-W"));
+    ui_target_speed_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 56, 0, "TS: -RPM"));
+    ui_speed_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 56, 10, "RS: -RPM"));
 }
 bool main_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press, bool change)
 {
@@ -80,14 +81,16 @@ bool main_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press,
         if (change && !press)
         {
             keyboard::action res = keyboard::event_action(action_param, key_continue_ms);
-            if (res == keyboard::short_press) // 短按 切换页面
+            if (res != keyboard::short_press) // 长按 切换页面
             {
+                ui_obj->main_page_obj->base_obj->set_animation(100);
+                ui_obj->menu_page_obj->base_obj->set_animation(100);
                 ui_obj->main_page_obj->base_obj->set_postion(0, -32);
                 ui_obj->menu_page_obj->base_obj->set_postion(0, 0);
                 ui_obj->ui_window_obj->set_focus(ui_obj->menu_page_obj->base_obj);
             }
-            else // 长按 开关风扇
-                fan_obj->set_turn();
+            else // 短按 开关风扇
+                fan_obj->turn_switch();
         }
         break;
     }
@@ -137,12 +140,12 @@ menu_page::menu_page(ui *ui_obj) : ui_obj(ui_obj)
 {
     base_obj = new ui_base(&ui_obj->u8g2, 0, 0, 128, 32);
     base_obj->set_keyevent_cb(std::bind(&menu_page::key_event_cb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
-    config_fan_speed_on_start_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "startup speed:"));
-    config_fan_speed_on_start_value_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "-"));
-    config_min_pbo_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "min pbo:"));
-    config_min_pbo_text_value_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "-"));
-    config_max_pbo_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "max pbo:"));
-    config_max_pbo_text_value_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 5, 14, "-"));
+    config_fan_speed_on_start_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 0, 0, "startup speed:"));
+    config_fan_speed_on_start_value_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 0, 10, "-"));
+    config_min_pbo_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 128, 0, "min pbo:"));
+    config_min_pbo_text_value_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 128, 10, "-"));
+    config_max_pbo_text_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 256, 0, "max pbo:"));
+    config_max_pbo_text_value_obj = (ui_text *)base_obj->append_component(new ui_text(&ui_obj->u8g2, 256, 10, "-"));
 }
 bool menu_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press, bool change)
 {
@@ -154,8 +157,10 @@ bool menu_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press,
         if (change && !press)
         {
             keyboard::action res = keyboard::event_action(action_param, key_continue_ms);
-            if (res == keyboard::short_press) // 短按 切换页面
+            if (res != keyboard::short_press) // 短按 切换页面
             {
+                ui_obj->main_page_obj->base_obj->set_animation(100);
+                ui_obj->menu_page_obj->base_obj->set_animation(100);
                 ui_obj->main_page_obj->base_obj->set_postion(0, 0);
                 ui_obj->menu_page_obj->base_obj->set_postion(0, -32);
                 ui_obj->ui_window_obj->set_focus(ui_obj->main_page_obj->base_obj);

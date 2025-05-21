@@ -51,107 +51,6 @@ public:
     }
 };
 
-class thread_helper
-{
-private:
-    TaskHandle_t pxCreatedTask = NULL;
-    std::function<void(void *)> task_caller;
-    void *task_param;
-    static void caller(void *param)
-    {
-        ((thread_helper *)param)->task_caller(((thread_helper *)param)->task_param);
-        vTaskDelete(NULL);
-    }
-    void init(std::function<void(void *)> caller, const char *name, void *param, uint32_t stack_depth, uint8_t prio)
-    {
-        task_caller = caller;
-        task_param = param;
-        xTaskCreate(this->caller, name, stack_depth, this, prio, &pxCreatedTask);
-        if (pxCreatedTask != NULL)
-            vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)0);
-    }
-
-public:
-    thread_helper(std::function<void(void *)> caller, void *param = nullptr, std::string name = "", uint32_t stack_depth = 4096, uint8_t prio = 1)
-    {
-        init(caller, name.c_str(), param, stack_depth, prio);
-    }
-    thread_helper(std::function<void(void *)> caller, void *param = nullptr, const char *name = NULL, uint32_t stack_depth = 4096, uint8_t prio = 1)
-    {
-        init(caller, name ? name : "", param, stack_depth, prio);
-    }
-    thread_helper(std::function<void(void *)> caller, std::string name = "", void *param = nullptr, uint32_t stack_depth = 4096, uint8_t prio = 1)
-    {
-        init(caller, name.c_str(), param, stack_depth, prio);
-    }
-    thread_helper(std::function<void(void *)> caller, const char *name = NULL, void *param = nullptr, uint32_t stack_depth = 4096, uint8_t prio = 1)
-    {
-        init(caller, name ? name : "", param, stack_depth, prio);
-    }
-    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, void *param = nullptr, std::string name = "", uint8_t prio = 1)
-    {
-        init(caller, name.c_str(), param, stack_depth, prio);
-    }
-    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, void *param = nullptr, const char *name = "", uint8_t prio = 1)
-    {
-        init(caller, name ? name : "", param, stack_depth, prio);
-    }
-    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, std::string name = "", void *param = nullptr, uint8_t prio = 1)
-    {
-        init(caller, name.c_str(), param, stack_depth, prio);
-    }
-    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, const char *name = "", void *param = nullptr, uint8_t prio = 1)
-    {
-        init(caller, name ? name : "", param, stack_depth, prio);
-    }
-    ~thread_helper()
-    {
-        if (pxCreatedTask != NULL)
-            vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)1);
-    }
-    void notify(void)
-    {
-        xTaskNotifyGive(pxCreatedTask);
-    }
-    void notify_isr(BaseType_t *mustYield)
-    {
-        vTaskNotifyGiveFromISR(pxCreatedTask, mustYield);
-    }
-    static bool thread_is_exit()
-    {
-        void *value = pvTaskGetThreadLocalStoragePointer(NULL, 0);
-        return (int)value == 1;
-    }
-    static void *malloc(size_t xSize)
-    {
-        return pvPortMalloc(xSize);
-    }
-    static void free(void *pointer)
-    {
-        vPortFree(pointer);
-    }
-    static TickType_t get_time_tick()
-    {
-        return xTaskGetTickCount();
-    }
-    static TickType_t get_time_ms()
-    {
-        return pdTICKS_TO_MS(xTaskGetTickCount());
-    }
-    static TickType_t tick_to_ms(TickType_t tick)
-    {
-        return pdTICKS_TO_MS(tick);
-    }
-    static void sleep(uint32_t sleep_time_ms)
-    {
-        vTaskDelay(pdMS_TO_TICKS(sleep_time_ms));
-    }
-    static bool sleep_until(TickType_t &last_wake_tick, uint32_t sleep_time_ms)
-    {
-        return xTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(sleep_time_ms)) == pdTRUE;
-    }
-};
-
 class thread_mutex_lock
 {
 private:
@@ -225,6 +124,113 @@ public:
     bool gave_isr(BaseType_t *mustYield)
     {
         return xSemaphoreGiveFromISR(semaphore, mustYield) == pdTRUE;
+    }
+};
+
+class thread_helper
+{
+private:
+    thread_semaphore semaphore;
+    TaskHandle_t pxCreatedTask = NULL;
+    std::function<void(void *)> task_caller;
+    void *task_param;
+    static void caller(void *param)
+    {
+        ((thread_helper *)param)->task_caller(((thread_helper *)param)->task_param);
+        vTaskDelete(NULL);
+        ((thread_helper *)param)->semaphore.gave();
+    }
+    void init(std::function<void(void *)> caller, const char *name, void *param, uint32_t stack_depth, uint8_t prio)
+    {
+        task_caller = caller;
+        task_param = param;
+        xTaskCreate(this->caller, name, stack_depth, this, prio, &pxCreatedTask);
+        if (pxCreatedTask != NULL)
+            vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)0);
+    }
+
+public:
+    thread_helper(std::function<void(void *)> caller, void *param = nullptr, std::string name = "", uint32_t stack_depth = 4096, uint8_t prio = 1)
+    {
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, void *param = nullptr, const char *name = NULL, uint32_t stack_depth = 4096, uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, std::string name = "", void *param = nullptr, uint32_t stack_depth = 4096, uint8_t prio = 1)
+    {
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, const char *name = NULL, void *param = nullptr, uint32_t stack_depth = 4096, uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, void *param = nullptr, std::string name = "", uint8_t prio = 1)
+    {
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, void *param = nullptr, const char *name = "", uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, std::string name = "", void *param = nullptr, uint8_t prio = 1)
+    {
+        init(caller, name.c_str(), param, stack_depth, prio);
+    }
+    thread_helper(std::function<void(void *)> caller, uint32_t stack_depth, const char *name = "", void *param = nullptr, uint8_t prio = 1)
+    {
+        init(caller, name ? name : "", param, stack_depth, prio);
+    }
+    ~thread_helper()
+    {
+        if (pxCreatedTask != NULL)
+        {
+            vTaskSetThreadLocalStoragePointer(pxCreatedTask, 0, (void *)1);
+            notify();
+            semaphore.wait();
+        }
+    }
+    void notify(void)
+    {
+        xTaskNotifyGive(pxCreatedTask);
+    }
+    void notify_isr(BaseType_t *mustYield)
+    {
+        vTaskNotifyGiveFromISR(pxCreatedTask, mustYield);
+    }
+    static bool thread_is_exit()
+    {
+        void *value = pvTaskGetThreadLocalStoragePointer(NULL, 0);
+        return (int)value == 1;
+    }
+    static void *malloc(size_t xSize)
+    {
+        return pvPortMalloc(xSize);
+    }
+    static void free(void *pointer)
+    {
+        vPortFree(pointer);
+    }
+    static TickType_t get_time_tick()
+    {
+        return xTaskGetTickCount();
+    }
+    static TickType_t get_time_ms()
+    {
+        return pdTICKS_TO_MS(xTaskGetTickCount());
+    }
+    static TickType_t tick_to_ms(TickType_t tick)
+    {
+        return pdTICKS_TO_MS(tick);
+    }
+    static void sleep(uint32_t sleep_time_ms)
+    {
+        vTaskDelay(pdMS_TO_TICKS(sleep_time_ms));
+    }
+    static bool sleep_until(TickType_t &last_wake_tick, uint32_t sleep_time_ms)
+    {
+        return xTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(sleep_time_ms)) == pdTRUE;
     }
 };
 
