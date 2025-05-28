@@ -90,7 +90,11 @@ bool main_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press,
                 ui_obj->ui_window_obj->set_focus(ui_obj->menu_page_obj->base_obj);
             }
             else // 短按 开关风扇
+            {
                 fan_obj->turn_switch();
+                ui_obj->controller_obj->board_obj->nvs_handle->set_item("fan_switch", fan_obj->get_switch());
+                ui_obj->controller_obj->board_obj->nvs_handle->commit();
+            }
         }
         break;
     }
@@ -104,6 +108,8 @@ bool main_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press,
                 change_fan_speed(-100);
             else if (res == keyboard::long_press) // 长按
                 change_fan_speed(-1000);
+            ui_obj->controller_obj->board_obj->nvs_handle->set_item("fan_speed", fan_obj->get_target_speed());
+            ui_obj->controller_obj->board_obj->nvs_handle->commit();
         }
         else if (press)
         {
@@ -123,6 +129,8 @@ bool main_page::key_event_cb(uint32_t key, uint32_t key_continue_ms, bool press,
                 change_fan_speed(100);
             else if (res == keyboard::long_press) // 长按
                 change_fan_speed(1000);
+            ui_obj->controller_obj->board_obj->nvs_handle->set_item("fan_speed", fan_obj->get_target_speed());
+            ui_obj->controller_obj->board_obj->nvs_handle->commit();
         }
         else if (press)
         {

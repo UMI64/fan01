@@ -29,12 +29,16 @@ void controller::main_task(void *param)
 void controller::run()
 {
     uint8_t pbo_voltage = husb238::src_pdo_voltage::src_pdo_20v;
-    uint8_t fan_speed_use_storeg = false;
+    bool fan_speed_use_storeg = true;
     uint16_t fan_speed = 0;
+    bool fan_switch = false;
     board_obj->nvs_handle->get_item("pbo_voltage", pbo_voltage);
     board_obj->nvs_handle->get_item("fan_speed_use_storeg", fan_speed_use_storeg);
     if (fan_speed_use_storeg)
+    {
         board_obj->nvs_handle->get_item("fan_speed", fan_speed);
+        board_obj->nvs_handle->get_item("fan_switch", fan_switch);
+    }
     for (auto src_pdo_voltage : husb238::support_voltages)
     {
         float current = husb238_obj->read_pdo_cap(src_pdo_voltage);
@@ -43,7 +47,7 @@ void controller::run()
     }
     husb238_obj->set_pdo((husb238::src_pdo_voltage)pbo_voltage);
     husb238_obj->req_pdo();
-    fan_obj->set_switch(true);
+    fan_obj->set_switch(fan_switch);
     fan_obj->set_target_speed(fan_speed);
     ui ui(this);
     while (1)

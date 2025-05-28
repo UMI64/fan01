@@ -39,9 +39,9 @@ public:
     void set_switch(bool sw);
     bool get_switch();
 
-    void set_target_speed(uint32_t rpm);
-    uint32_t get_target_speed();
-    uint32_t get_speed();
+    void set_target_speed(uint16_t rpm);
+    uint16_t get_target_speed();
+    uint16_t get_speed();
 
     float get_voltage();
     float get_current();

@@ -96,15 +96,15 @@ int fan::read_power()
     return power;
 }
 
-uint32_t fan::get_speed()
+uint16_t fan::get_speed()
 {
     return speed_count.speed_rpm;
 }
-void fan::set_target_speed(uint32_t rpm)
+void fan::set_target_speed(uint16_t rpm)
 {
     pid_obj.target_val = rpm;
 }
-uint32_t fan::get_target_speed()
+uint16_t fan::get_target_speed()
 {
     return pid_obj.target_val;
 }
