@@ -4,7 +4,7 @@
 class fan
 {
 private:
-    board * board_obj;
+    board *board_obj;
     gpio_num_t fan_power_pin = GPIO_NUM_4;
     gpio_num_t fan_pwm_pin = GPIO_NUM_13;   // GPIO_NUM_21;
     gpio_num_t fan_speed_pin = GPIO_NUM_12; // GPIO_NUM_20;
@@ -17,7 +17,10 @@ private:
     struct
     {
         std::atomic_int16_t pin_count = 0;
-        uint16_t speed_rpm = 0;
+        int64_t t_timestamp = 0;
+        int64_t m_timestamp = 0;
+        uint16_t m_speed_rpm = 0;
+        uint16_t t_speed_rpm = 0;
     } speed_count;
     void set_duty_cycle(float p);
     void main_task(void *param);
@@ -32,7 +35,7 @@ public:
     int current = 0, filter_current = 0;
     int power = 0, filter_power = 0;
 
-    fan(board * board_obj);
+    fan(board *board_obj);
     ~fan();
     static const char *tag();
     void turn_switch();

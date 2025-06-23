@@ -1,6 +1,8 @@
 #include "fan.hpp"
 fan::fan(board *board_obj) : board_obj(board_obj)
 {
+    speed_count.t_timestamp = esp_timer_get_time();
+    speed_count.m_timestamp = speed_count.t_timestamp;
     gpio_config_t io_conf = {};
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT_OD;
@@ -98,7 +100,7 @@ int fan::read_power()
 
 uint16_t fan::get_speed()
 {
-    return speed_count.speed_rpm;
+    return speed_count.t_speed_rpm;
 }
 void fan::set_target_speed(uint16_t rpm)
 {
@@ -119,11 +121,6 @@ void fan::main_task(void *param)
         if (get_switch())
         {
             set_duty_cycle(current_duty_cycle + pid_obj.do_cal(get_speed()));
-            // ESP_LOGI(tag(), "%urpm | %0.4fV %0.4fA %0.4fW | p:%0.4f i:%0.4f d:%0.4f | d %0.4f cd %0.4f",
-            //          speed_count.speed_rpm,
-            //          voltage, current, filter_power,
-            //          pid_obj.p_vote, pid_obj.i_vote, pid_obj.d_vote,
-            //          current_duty_cycle, change_duty_cycle);
         }
         else
         {
@@ -131,24 +128,26 @@ void fan::main_task(void *param)
             set_duty_cycle(0);
         }
     };
-    auto do_count_speed = [&]() -> void
-    {
-        uint16_t pin_count = speed_count.pin_count;
-        speed_count.pin_count = 0;
-        speed_count.speed_rpm = (float)speed_count.speed_rpm * 0.75f + (float)pin_count * 1000 / main_task_cycle_ms / 2 * 60 * 0.25f;
-        // ESP_LOGI(tag(), "pin %u\n", pin_count);
-    };
     TickType_t last_wake_tick = thread_helper::get_time_tick();
     while (!thread_helper::thread_is_exit())
     {
         thread_helper::sleep_until(last_wake_tick, main_task_cycle_ms);
         read_power();
-        do_count_speed();
         do_power_pid();
     }
 }
 void fan::speed_pin_isr_handler(void *arg)
 {
     fan *fan_obj = (fan *)arg;
+    int64_t time_now = esp_timer_get_time();
+    int64_t time_diff = time_now - fan_obj->speed_count.t_timestamp;
+    fan_obj->speed_count.t_speed_rpm = 0.5f * ((float)(60 * 1000 * 1000) / time_diff);
     fan_obj->speed_count.pin_count += 1;
+    fan_obj->speed_count.t_timestamp = time_now;
+    if (time_now >= fan_obj->speed_count.m_timestamp)
+    {
+        fan_obj->speed_count.m_speed_rpm = (float)fan_obj->speed_count.m_speed_rpm * 0.75f + (float)fan_obj->speed_count.pin_count * 1000 / fan_obj->main_task_cycle_ms / 2 * 60 * 0.25f;
+        fan_obj->speed_count.m_timestamp = time_now + 1000 * fan_obj->main_task_cycle_ms;
+        fan_obj->speed_count.pin_count = 0;
+    }
 }
