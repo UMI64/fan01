@@ -168,7 +168,6 @@ void ui_base::forward_render(ui_base *ui_base, uint32_t time_diff_ms)
     ui_base->update_absolute_size();
     if (ui_base->animation_left_time_ms > 0)
         ui_base->animation_left_time_ms -= time_diff_ms;
-
     ui_base->render();
     for (auto child : ui_base->childs)
     {
