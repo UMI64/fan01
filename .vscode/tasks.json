@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "config_boot",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/scripts/help.sh > /dev/null 2>&1 && west build -b esp32c3_fan01 mcuboot -t menuconfig",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "config_app",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/scripts/help.sh > /dev/null 2>&1 && west build -b esp32c3_fan01 project -t menuconfig",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/scripts/help.sh > /dev/null 2>&1 && build",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "flash_boot",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/scripts/help.sh > /dev/null 2>&1 && flash boot",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "flash_app",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/scripts/help.sh > /dev/null 2>&1 && flash app",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "dump_all",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/scripts/help.sh > /dev/null 2>&1 && dump",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "gdb",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/scripts/help.sh > /dev/null 2>&1 && gdb",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        }
+    ]
+}

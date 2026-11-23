@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/ {
+	chosen {
+		zephyr,code-partition = &boot_partition;
+	};
+};
+
+/* MCUboot 阶段禁用 I2C 与外设，减小体积并避免外设冲突 */
+&i2c0 {
+	status = "disabled";
+};
+
+&ledc0 {
+	status = "disabled";
+};
+
+&adc0 {
+	status = "disabled";
+};

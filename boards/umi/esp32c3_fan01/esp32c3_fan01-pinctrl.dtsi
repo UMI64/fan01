@@ -1,0 +1,43 @@
+/*
+ * Copyright (c) 2024 umi
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/pinctrl/esp-pinctrl-common.h>
+#include <zephyr/dt-bindings/pinctrl/esp32c3-pinctrl.h>
+#include <zephyr/dt-bindings/pinctrl/esp32c3-gpio-sigmap.h>
+
+&pinctrl {
+	/* Serial0: RX=GPIO20, TX=GPIO21 */
+	uart0_default: uart0_default {
+		group1 {
+			pinmux = <UART0_TX_GPIO21>;
+			output-high;
+		};
+
+		group2 {
+			pinmux = <UART0_RX_GPIO20>;
+			bias-pull-up;
+		};
+	};
+
+	/* I2C0: SCL=GPIO8, SDA=GPIO9 (SSD1306 + HUSB238) */
+	i2c0_default: i2c0_default {
+		group1 {
+			pinmux = <I2C0_SCL_GPIO8>,
+				 <I2C0_SDA_GPIO9>;
+			bias-pull-up;
+			drive-open-drain;
+			output-high;
+		};
+	};
+
+	/* LEDC0: CH0=GPIO13 (Fan PWM) */
+	ledc0_default: ledc0_default {
+		group1 {
+			pinmux = <LEDC_CH0_GPIO13>;
+			output-enable;
+		};
+	};
+};

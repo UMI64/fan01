@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FAN01 智能风扇控制器</title>
+<style>
+:root{--bg:#0b1120;--card:#131c31;--line:#24324d;--accent:#38bdf8;--accent2:#22d3ee;--ok:#34d399;--warn:#fbbf24;--err:#f87171;--txt:#e2e8f0;--mut:#94a3b8}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 20% 0%,#162444 0%,var(--bg) 60%);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;min-height:100vh}
+.topbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 18px;background:rgba(11,17,32,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;letter-spacing:.5px}
+.ver{font-size:11px;padding:2px 7px;border-radius:999px;background:#1e293b;color:var(--accent);border:1px solid #334155}
+.tabs{display:flex;gap:6px;background:#0f172a;padding:4px;border-radius:10px;border:1px solid var(--line)}
+.tab{border:none;background:transparent;color:var(--mut);padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
+.tab.active{background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;box-shadow:0 2px 10px #0284c755}
+.pills{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:#162038;border:1px solid var(--line);color:var(--txt)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.dot.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.dot.ap{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+.dot.conn{background:var(--accent);animation:blink .7s infinite}
+@keyframes blink{50%{opacity:.2}}
+.wrap{max-width:1040px;margin:18px auto;padding:0 16px 32px}
+.page{display:none}.page.active{display:block}
+.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:16px}
+@media(max-width:820px){.hero{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 8px 28px #0004}
+.card h3{margin:0 0 12px;font-size:15px;color:var(--accent);display:flex;justify-content:space-between;align-items:center}
+.fan-box{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:340px;overflow:hidden}
+#fanCanvas{width:100%;max-width:400px;height:310px;cursor:grab;touch-action:none}
+#fanCanvas:active{cursor:grabbing}
+.rpm-overlay{position:absolute;bottom:14px;left:18px;right:18px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none}
+.big-rpm{font-size:36px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;color:#fff;text-shadow:0 2px 12px #38bdf844}
+.big-rpm span{font-size:13px;color:var(--mut);font-weight:500;margin-left:4px}
+.hint{font-size:11px;color:var(--mut)}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.m{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:11px 12px}
+.m .k{font-size:11px;color:var(--mut)}
+.m .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:3px}
+.ctrl-row{display:flex;gap:8px;margin:10px 0}
+.btn{flex:1;padding:9px 12px;border:none;border-radius:9px;background:#0284c7;color:#fff;font-weight:600;font-size:13px;cursor:pointer;transition:.15s}
+.btn:hover{filter:brightness(1.12)}
+.btn.sec{background:#334155}
+.btn.danger{background:#b91c1c}
+.btn.ok{background:#059669}
+input[type=range]{width:100%;accent-color:var(--accent);margin:8px 0}
+input[type=text],input[type=password],input[type=number],select{width:100%;padding:9px 11px;margin:5px 0 10px;border-radius:8px;border:1px solid #334155;background:#0b1222;color:var(--txt);font-size:14px}
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:780px){.cfg-grid{grid-template-columns:1fr}}
+.row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px solid #1e293b}
+.row:last-child{border:none}
+.prog{width:100%;height:10px;border-radius:999px;background:#0b1222;border:1px solid var(--line);overflow:hidden;margin:10px 0}
+.prog-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--ok));transition:width .15s}
+label{font-size:12px;color:var(--mut);display:block;margin-top:4px}
+.switch-lbl{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:14px}
+.pdo-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.chip{padding:4px 9px;border-radius:8px;font-size:12px;background:#0f172a;border:1px solid #334155;color:var(--mut)}
+.chip.on{border-color:var(--accent);color:var(--accent);background:#0c2d48}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span>FAN01</span>
+    <span class="ver" id="topVer">v1.0.0</span>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" onclick="showPage(0,this)">实时监控</button>
+    <button class="tab" onclick="showPage(1,this)">系统配置</button>
+  </nav>
+  <div class="pills">
+    <span class="pill"><i class="dot" id="topWifiDot"></i><span id="topWifiTxt">WiFi: --</span></span>
+    <span class="pill" id="topRpm">0 RPM</span>
+    <span class="pill" id="topPwr">0.00 W</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="page0" class="page active">
+    <div class="hero">
+      <div class="card fan-box">
+        <canvas id="fanCanvas" width="440" height="340"></canvas>
+        <div class="rpm-overlay">
+          <div>
+            <div class="hint">实时转速 (拖拽可旋转 3D 视角)</div>
+            <div class="big-rpm"><b id="bigRpm">0</b><span>RPM</span></div>
+          </div>
+          <div style="text-align:right">
+            <div class="hint">运行状态</div>
+            <b id="fanStateBadge" style="color:var(--mut)">STOPPED</b>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span>实时参数 & 调速控制</span><span id="pdTag" style="font-size:12px;color:var(--mut)">PD --V</span></h3>
+        <div class="metrics">
+          <div class="m"><div class="k">目标转速</div><div class="v"><span id="mTarget">0</span> <small style="font-size:12px;color:var(--mut)">RPM</small></div></div>
+          <div class="m"><div class="k">PWM 占空比</div><div class="v"><span id="mDuty">0.0</span> <small style="font-size:12px;color:var(--mut)">%</small></div></div>
+          <div class="m"><div class="k">输入电压 (CH3)</div><div class="v"><span id="mVolt">0.00</span> <small style="font-size:12px;color:var(--mut)">V</small></div></div>
+          <div class="m"><div class="k">电流 / 功率</div><div class="v"><span id="mCur">0.00</span>A / <span id="mPwr">0.00</span>W</div></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+          <label style="margin:0">目标转速调节 (<span id="sliderVal">0</span> RPM)</label>
+          <button id="rpmLockBtn" class="btn sec" style="flex:0 0 auto;padding:4px 10px;font-size:12px" onclick="toggleRpmLock()">🔒 已锁定（点击解锁）</button>
+        </div>
+        <div id="rpmCtrlWrap" style="opacity:0.45;transition:opacity .15s">
+          <input id="rpmSlider" type="range" min="0" max="8000" step="100" value="0" disabled
+                 oninput="if(!rpmLocked)sliderVal.textContent=this.value"
+                 onchange="setTargetRpm(parseInt(this.value))">
+          <div class="ctrl-row">
+            <button class="btn sec rpm-step" disabled onclick="stepRpm(-1000)">-1000</button>
+            <button class="btn sec rpm-step" disabled onclick="stepRpm(-100)">-100</button>
+            <button class="btn sec rpm-step" disabled onclick="stepRpm(100)">+100</button>
+            <button class="btn sec rpm-step" disabled onclick="stepRpm(1000)">+1000</button>
+          </div>
+        </div>
+        <div class="ctrl-row" style="margin-top:12px">
+          <button class="btn ok" onclick="setSwitch(true)">开启风扇</button>
+          <button class="btn danger" onclick="setSwitch(false)">关闭风扇</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page1" class="page">
+    <div class="cfg-grid">
+      <div class="card">
+        <h3>Wi-Fi 联网配置</h3>
+        <div class="row"><span>当前模式</span><b id="wMode">-</b></div>
+        <div class="row"><span>当前 SSID / IP</span><b id="wInfo">-</b></div>
+        <div class="row"><span>已保存网络</span><b id="wSaved">-</b></div>
+
+        <div class="ctrl-row" style="margin-top:10px">
+          <button class="btn sec" onclick="scanWifi()">扫描附近 Wi-Fi</button>
+          <button class="btn sec" onclick="reconnectWifi()">按优先级重连</button>
+          <button class="btn danger" onclick="clearWifi()">清空全部</button>
+        </div>
+
+        <label>已保存 Wi-Fi 列表（按 #1 → #N 优先级连接，最多 5 个）</label>
+        <div id="wifiProfList" style="display:flex;flex-direction:column;gap:6px;margin:6px 0 12px"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+          <label id="wFormTitle" style="margin:0;color:var(--accent);font-weight:600">添加 / 更新 Wi-Fi（绑定 IP 设置）</label>
+          <button id="wCancelEdit" class="btn sec" style="display:none;flex:0 0 auto;padding:4px 8px;font-size:11px" onclick="resetWifiForm()">取消编辑</button>
+        </div>
+        <select id="apList" onchange="if(this.value){wSsid.value=this.value;}">
+          <option value="">-- 扫描后选择网络 --</option>
+        </select>
+        <label>Wi-Fi 名称 (SSID)</label>
+        <input id="wSsid" type="text" placeholder="输入 SSID">
+        <label>Wi-Fi 密码</label>
+        <input id="wPsk" type="password" placeholder="开放网络留空">
+        <div id="wClearPskRow" class="switch-lbl" style="display:none;padding:2px 0 6px;font-size:12px;color:var(--mut)">
+          <span>改为开放网络（清除原密码）</span>
+          <input id="wClearPsk" type="checkbox" style="width:16px;height:16px">
+        </div>
+        <div class="switch-lbl">
+          <span>该 SSID 使用静态 IP（关闭则使用 DHCP）</span>
+          <input id="wStaticEn" type="checkbox" style="width:18px;height:18px" onchange="toggleStaticIpFields()">
+        </div>
+        <div id="staticIpBox" style="display:none">
+          <label>静态 IP 地址</label>
+          <input id="wStaticIp" type="text" placeholder="例如 192.168.30.200">
+          <div class="ctrl-row" style="margin:0">
+            <div style="flex:1"><label>子网掩码</label><input id="wNetmask" type="text" placeholder="255.255.255.0"></div>
+            <div style="flex:1"><label>默认网关（可选）</label><input id="wGateway" type="text" placeholder="例如 192.168.30.1"></div>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <button class="btn" onclick="connectWifi()">保存并连接</button>
+          <button class="btn sec" style="flex:0 0 auto" onclick="saveProfileOnly()">仅保存到列表</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>风扇与供电细节配置</h3>
+        <div class="switch-lbl">
+          <span>开机恢复上次转速与开关</span>
+          <input id="cfgMem" type="checkbox" style="width:18px;height:18px">
+        </div>
+        <label>USB-PD 诱骗目标电压 (HUSB238)</label>
+        <div class="pdo-chips" id="pdoCaps"></div>
+        <select id="cfgPd">
+          <option value="5">5 V</option>
+          <option value="9">9 V</option>
+          <option value="12">12 V</option>
+          <option value="15">15 V</option>
+          <option value="18">18 V</option>
+          <option value="20">20 V</option>
+        </select>
+        <div class="ctrl-row">
+          <div style="flex:1"><label>PID Kp</label><input id="cfgKp" type="number" step="0.0001"></div>
+          <div style="flex:1"><label>PID Ki</label><input id="cfgKi" type="number" step="0.0001"></div>
+          <div style="flex:1"><label>PID Kd</label><input id="cfgKd" type="number" step="0.0001"></div>
+        </div>
+        <button class="btn" onclick="saveConfig()">保存细节配置</button>
+      </div>
+
+      <div class="card">
+        <h3>屏幕显示与自动熄屏配置</h3>
+        <div class="ctrl-row">
+          <div style="flex:1"><label>全亮度时间 (秒, 0=常亮)</label><input id="cfgFullS" type="number" min="0" step="10"></div>
+          <div style="flex:1"><label>半亮度时间 (秒, 0=直接熄屏)</label><input id="cfgDimS" type="number" min="0" step="10"></div>
+        </div>
+        <div class="ctrl-row">
+          <div style="flex:1"><label>全亮度对比度 (1~255)</label><input id="cfgFullBr" type="number" min="1" max="255"></div>
+          <div style="flex:1"><label>半亮度对比度 (1~255)</label><input id="cfgDimBr" type="number" min="1" max="255"></div>
+        </div>
+        <button class="btn" onclick="saveDisplayCfg()">保存屏幕配置</button>
+      </div>
+
+      <div class="card">
+        <h3>OTA 固件升级 (MCUboot)</h3>
+        <div class="row"><span>当前固件版本</span><b id="otaVer">-</b></div>
+        <div class="row"><span>Zephyr 内核 / 运行时长</span><b id="otaSys">-</b></div>
+        <div class="row"><span>MCUboot 镜像状态</span><b id="otaConf">-</b></div>
+        <label style="margin-top:10px">选择签名固件文件 (zephyr.signed.bin)</label>
+        <input id="otaFile" type="file" accept=".bin" style="margin:6px 0">
+        <div class="prog"><div class="prog-bar" id="otaBar"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span id="otaMsg" style="font-size:13px;color:var(--mut)">请选择固件后点击升级</span>
+          <button class="btn" style="max-width:200px" onclick="startOta()">开始 OTA 升级</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+let state={rpm:0,target_rpm:0,switch:false,voltage:0,current:0,power:0,duty:0,pd_volts:20};
+let visRpm=0,bladeAngle=0,lastTs=performance.now();
+let camTilt=0.48,camYaw=0.28,dragging=false,dragX=0,dragY=0;
+const parts=Array.from({length:32},(_,i)=>({a:(i/32)*Math.PI*2,r:0.25+Math.random()*0.68,z:-1+Math.random()*2,s:0.4+Math.random()*0.8}));
+
+function showPage(idx,btn){
+  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===idx));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  if(idx===1){loadWifiProfiles();loadConfig();loadDevInfo();}
+}
+
+const cvs=document.getElementById('fanCanvas'),ctx=cvs.getContext('2d');
+cvs.addEventListener('pointerdown',e=>{dragging=true;dragX=e.clientX;dragY=e.clientY;cvs.setPointerCapture(e.pointerId)});
+cvs.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  camYaw+=(e.clientX-dragX)*0.008;
+  camTilt=Math.max(-1.1,Math.min(1.1,camTilt+(e.clientY-dragY)*0.008));
+  dragX=e.clientX;dragY=e.clientY;
+});
+cvs.addEventListener('pointerup',()=>dragging=false);
+
+function proj(x,y,z,cx,cy,fov){
+  let x1=x*Math.cos(camYaw)+z*Math.sin(camYaw);
+  let z1=-x*Math.sin(camYaw)+z*Math.cos(camYaw);
+  let y2=y*Math.cos(camTilt)-z1*Math.sin(camTilt);
+  let z2=y*Math.sin(camTilt)+z1*Math.cos(camTilt);
+  let s=fov/(fov+z2);
+  return {x:cx+x1*s,y:cy+y2*s,z:z2,s:s};
+}
+
+function draw3DFan(now){
+  let dt=Math.min(0.05,(now-lastTs)/1000);
+  lastTs=now;
+  visRpm+=(state.rpm-visRpm)*Math.min(1,dt*8);
+  let radPerSec=(visRpm/60)*Math.PI*2;
+  // 视觉混叠平滑上限，保证高速时仍能看清旋转方向与动感
+  let visualRad=Math.min(radPerSec,48);
+  bladeAngle=(bladeAngle+visualRad*dt)%(Math.PI*2);
+
+  let w=cvs.width,h=cvs.height,cx=w/2,cy=h/2-6,R=118,fov=380;
+  ctx.clearRect(0,0,w,h);
+
+  // 背景光晕
+  let g=ctx.createRadialGradient(cx,cy,18,cx,cy,165);
+  let glowAlpha=state.switch?Math.min(0.32,0.08+visRpm/16000):0.04;
+  g.addColorStop(0,'rgba(56,189,248,'+glowAlpha+')');
+  g.addColorStop(1,'rgba(11,17,32,0)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+
+  // 3D 外框圆环（前后两圈形成厚度）
+  for(let ring=0;ring<2;ring++){
+    let rz=ring===0?-16:16;
+    ctx.beginPath();
+    for(let i=0;i<=48;i++){
+      let a=(i/48)*Math.PI*2;
+      let p=proj(Math.cos(a)*R,Math.sin(a)*R,rz,cx,cy,fov);
+      if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);
+    }
+    ctx.strokeStyle=ring===0?'#1e3a5f':'#38bdf866';
+    ctx.lineWidth=ring===0?5:3;
+    ctx.stroke();
+  }
+  for(let i=0;i<12;i++){
+    let a=(i/12)*Math.PI*2;
+    let p1=proj(Math.cos(a)*R,Math.sin(a)*R,-16,cx,cy,fov);
+    let p2=proj(Math.cos(a)*R,Math.sin(a)*R,16,cx,cy,fov);
+    ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);
+    ctx.strokeStyle='#243b5e';ctx.lineWidth=2;ctx.stroke();
+  }
+
+  // 7片3D扭曲扇叶按深度排序绘制
+  const BLADES=7;
+  let polys=[];
+  for(let b=0;b<BLADES;b++){
+    let baseA=bladeAngle+(b*Math.PI*2)/BLADES;
+    let pts=[
+      {r:24,da:-0.16,z:7},
+      {r:R-8,da:-0.28,z:11},
+      {r:R-6,da:0.24,z:-11},
+      {r:24,da:0.16,z:-7},
+    ].map(v=>proj(Math.cos(baseA+v.da)*v.r,Math.sin(baseA+v.da)*v.r,v.z,cx,cy,fov));
+    let avgZ=(pts[0].z+pts[1].z+pts[2].z+pts[3].z)/4;
+    let shade=Math.max(0.35,Math.min(1,0.72+Math.sin(baseA)*0.25));
+    polys.push({pts,avgZ,shade});
+  }
+  polys.sort((a,b)=>b.avgZ-a.avgZ);
+
+  for(let p of polys){
+    ctx.beginPath();
+    ctx.moveTo(p.pts[0].x,p.pts[0].y);
+    for(let i=1;i<4;i++)ctx.lineTo(p.pts[i].x,p.pts[i].y);
+    ctx.closePath();
+    let c1=Math.round(45*p.shade),c2=Math.round(170*p.shade),c3=Math.round(240*p.shade);
+    ctx.fillStyle='rgba('+c1+','+c2+','+c3+',0.86)';
+    ctx.fill();
+    ctx.strokeStyle='rgba(186,230,253,0.45)';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  }
+
+  // 3D 中心轮毂
+  let hub=proj(0,0,0,cx,cy,fov);
+  let hr=26*hub.s;
+  let hg=ctx.createRadialGradient(hub.x-hr*0.3,hub.y-hr*0.3,2,hub.x,hub.y,hr);
+  hg.addColorStop(0,'#94a3b8');hg.addColorStop(0.6,'#334155');hg.addColorStop(1,'#0f172a');
+  ctx.beginPath();ctx.arc(hub.x,hub.y,hr,0,Math.PI*2);ctx.fillStyle=hg;ctx.fill();
+  ctx.strokeStyle='#38bdf888';ctx.lineWidth=1.5;ctx.stroke();
+
+  // 气流粒子线（转速越快越明显）
+  if(visRpm>80){
+    let spd=Math.min(1.5,visRpm/4500);
+    ctx.strokeStyle='rgba(56,189,248,'+Math.min(0.45,spd*0.4)+')';
+    ctx.lineWidth=1.5;
+    for(let pt of parts){
+      pt.z+=dt*2.4*spd*pt.s;
+      if(pt.z>1.2)pt.z=-1.2;
+      let p1=proj(Math.cos(pt.a)*R*pt.r,Math.sin(pt.a)*R*pt.r,pt.z*55,cx,cy,fov);
+      let p2=proj(Math.cos(pt.a)*R*pt.r,Math.sin(pt.a)*R*pt.r,(pt.z-0.25)*55,cx,cy,fov);
+      ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+    }
+  }
+  requestAnimationFrame(draw3DFan);
+}
+requestAnimationFrame(draw3DFan);
+
+async function pollStatus(){
+  try{
+    let [fRes,wRes]=await Promise.all([fetch('/api/fan/status'),fetch('/api/wifi/status')]);
+    state=await fRes.json();
+    let w=await wRes.json();
+    bigRpm.textContent=state.rpm;
+    mTarget.textContent=state.target_rpm;
+    mDuty.textContent=state.duty.toFixed(1);
+    mVolt.textContent=state.voltage.toFixed(2);
+    mCur.textContent=state.current.toFixed(2);
+    mPwr.textContent=state.power.toFixed(2);
+    pdTag.textContent='PD '+state.pd_volts+'V';
+    if(!rpmSlider.matches(':active')){rpmSlider.value=state.target_rpm;sliderVal.textContent=state.target_rpm;}
+    fanStateBadge.textContent=state.switch?(state.rpm>0?'RUNNING':'ENABLED'):'STOPPED';
+    fanStateBadge.style.color=state.switch?'var(--ok)':'var(--mut)';
+
+    topRpm.textContent=state.rpm+' RPM';
+    topPwr.textContent=state.power.toFixed(2)+' W';
+    topWifiDot.className='dot '+(w.mode==='STA'?'ok':(w.mode==='CONNECTING'?'conn':'ap'));
+    topWifiTxt.textContent=w.mode==='STA'?('STA '+w.ssid):(w.mode==='CONNECTING'?'连接中...':'AP '+w.ssid);
+
+    wMode.textContent=w.mode;
+    wInfo.textContent=w.ssid+' ('+(w.ip||'-')+')'+(w.mode==='STA'&&w.static_en?' [静态IP]':'');
+    wSaved.textContent=w.saved_count?(w.saved_count+' 个 (首选 '+w.saved_ssid+')'):'未保存';
+  }catch(e){}
+}
+
+let savedProfiles=[];
+let editingOrigSsid='';
+let editingHasPsk=false;
+
+function escHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toggleStaticIpFields(){
+  staticIpBox.style.display=wStaticEn.checked?'block':'none';
+}
+function resetWifiForm(){
+  editingOrigSsid='';
+  editingHasPsk=false;
+  wFormTitle.textContent='添加 / 更新 Wi-Fi（绑定 IP 设置）';
+  wCancelEdit.style.display='none';
+  wSsid.value='';
+  wPsk.value='';
+  wPsk.placeholder='开放网络留空';
+  wClearPsk.checked=false;
+  wClearPskRow.style.display='none';
+  wStaticEn.checked=false;
+  wStaticIp.value='';
+  wNetmask.value='255.255.255.0';
+  wGateway.value='';
+  toggleStaticIpFields();
+}
+function editProfile(idx){
+  let p=savedProfiles[idx];
+  if(!p)return;
+  editingOrigSsid=p.ssid;
+  editingHasPsk=!!p.has_psk;
+  wFormTitle.textContent='编辑 Wi-Fi #'+ (idx+1) +': '+p.ssid;
+  wCancelEdit.style.display='inline-block';
+  wSsid.value=p.ssid;
+  wPsk.value='';
+  wPsk.placeholder=p.has_psk?'留空保持原密码不变':'当前为开放网络（可输入新密码）';
+  wClearPsk.checked=false;
+  wClearPskRow.style.display=p.has_psk?'flex':'none';
+  wStaticEn.checked=!!p.static_en;
+  wStaticIp.value=p.static_ip||'';
+  wNetmask.value=p.netmask||'255.255.255.0';
+  wGateway.value=p.gateway||'';
+  toggleStaticIpFields();
+}
+function isValidIp4(s){
+  let p=s.trim().split('.');
+  return p.length===4&&p.every(x=>/^\d+$/.test(x)&&+x>=0&&+x<=255);
+}
+function buildProfilePayload(){
+  let ssid=wSsid.value.trim();
+  if(!ssid){alert('请输入 SSID');return null;}
+  let en=!!wStaticEn.checked;
+  let ip=wStaticIp.value.trim(),mask=wNetmask.value.trim()||'255.255.255.0',gw=wGateway.value.trim();
+  if(en){
+    if(!isValidIp4(ip)||ip==='0.0.0.0'){alert('请输入有效的静态 IP 地址');return null;}
+    if(!isValidIp4(mask)){alert('请输入有效的子网掩码');return null;}
+    if(gw&&!isValidIp4(gw)){alert('请输入有效的默认网关（或留空）');return null;}
+  }
+  let psk=wPsk.value;
+  let keep_psk=!!(editingOrigSsid&&editingHasPsk&&psk===''&&!wClearPsk.checked);
+  return {orig_ssid:editingOrigSsid,ssid:ssid,password:psk,keep_psk:keep_psk,static_en:en,static_ip:ip,netmask:mask,gateway:gw};
+}
+async function loadWifiProfiles(){
+  try{
+    let r=await (await fetch('/api/wifi/profiles')).json();
+    savedProfiles=r.profiles||[];
+    if(!savedProfiles.length){
+      wifiProfList.innerHTML='<div style="font-size:12px;color:var(--mut);padding:6px 8px;background:#0f172a;border-radius:8px;border:1px solid #1e293b">暂无已保存 Wi-Fi，请在下方添加</div>';
+      return;
+    }
+    wifiProfList.innerHTML=savedProfiles.map((p,i)=>'<div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:8px 10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
+      +'<div style="min-width:0"><b style="color:var(--accent)">#'+(i+1)+'</b> <b>'+escHtml(p.ssid)+'</b> '
+      +'<span style="font-size:11px;color:var(--mut)">'+(p.has_psk?'🔒':'开放')+' · '+(p.static_en?('静态 '+escHtml(p.static_ip)):'DHCP')+'</span></div>'
+      +'<div style="display:flex;gap:4px;flex-shrink:0">'
+      +(i>0?'<button class="btn sec" style="padding:3px 7px;font-size:11px" onclick="moveProfile('+i+',-1)">↑</button>':'')
+      +(i<savedProfiles.length-1?'<button class="btn sec" style="padding:3px 7px;font-size:11px" onclick="moveProfile('+i+',1)">↓</button>':'')
+      +'<button class="btn sec" style="padding:3px 7px;font-size:11px" onclick="editProfile('+i+')">编辑</button>'
+      +'<button class="btn ok" style="padding:3px 7px;font-size:11px" onclick="connectSaved('+i+')">连接</button>'
+      +'<button class="btn danger" style="padding:3px 7px;font-size:11px" onclick="delProfile('+i+')">删</button>'
+      +'</div></div></div>').join('');
+  }catch(e){}
+}
+async function moveProfile(idx,dir){
+  await fetch('/api/wifi/profile/move',{method:'POST',body:JSON.stringify({index:idx,dir:dir})});
+  loadWifiProfiles();
+}
+async function delProfile(idx){
+  let p=savedProfiles[idx];
+  if(!p||!confirm('删除已保存 Wi-Fi “'+p.ssid+'”？'))return;
+  if(editingOrigSsid===p.ssid)resetWifiForm();
+  await fetch('/api/wifi/profile/delete',{method:'POST',body:JSON.stringify({index:idx})});
+  loadWifiProfiles();pollStatus();
+}
+async function connectSaved(idx){
+  let r=await (await fetch('/api/wifi/connect',{method:'POST',body:JSON.stringify({index:idx})})).json();
+  if(!r.success)return alert('连接失败: '+(r.message||'繁忙'));
+  alert('已开始连接，请观察顶部 WiFi 状态');
+  pollStatus();
+}
+
+let rpmLocked=true;
+function toggleRpmLock(){
+  rpmLocked=!rpmLocked;
+  rpmSlider.disabled=rpmLocked;
+  document.querySelectorAll('.rpm-step').forEach(b=>b.disabled=rpmLocked);
+  rpmCtrlWrap.style.opacity=rpmLocked?'0.45':'1';
+  rpmLockBtn.textContent=rpmLocked?'🔒 已锁定（点击解锁）':'🔓 已解锁（点击锁定）';
+  rpmLockBtn.className=rpmLocked?'btn sec':'btn';
+}
+
+async function setSwitch(on){
+  await fetch('/api/fan/control',{method:'POST',body:JSON.stringify({switch:!!on})});
+  pollStatus();
+}
+async function setTargetRpm(v){
+  if(rpmLocked)return;
+  v=Math.max(0,Math.min(8000,v));
+  await fetch('/api/fan/control',{method:'POST',body:JSON.stringify({target_rpm:v})});
+  pollStatus();
+}
+function stepRpm(d){if(!rpmLocked)setTargetRpm((state.target_rpm||0)+d);}
+
+async function scanWifi(){
+  apList.innerHTML='<option>扫描中...</option>';
+  try{
+    await fetch('/api/wifi/scan/start',{method:'POST'});
+    for(let i=0;i<22;i++){
+      await new Promise(res=>setTimeout(res,500));
+      let r=await (await fetch('/api/wifi/scan')).json();
+      if(!r.scanning){
+        let aps=r.ap_list||[];
+        apList.innerHTML=aps.length?'<option value="">-- 选择 Wi-Fi ('+aps.length+'个) --</option>':'<option value="">-- 未扫到 Wi-Fi，请重试 --</option>';
+        aps.forEach(a=>{
+          let o=document.createElement('option');
+          o.value=a.ssid;o.textContent=a.ssid+' ('+a.rssi+'dBm'+(a.secure?' 🔒':'')+')';
+          apList.appendChild(o);
+        });
+        return;
+      }
+    }
+    apList.innerHTML='<option value="">-- 扫描超时，请重试 --</option>';
+  }catch(e){
+    apList.innerHTML='<option value="">-- 扫描请求失败 --</option>';
+  }
+}
+async function saveProfileOnly(){
+  let pl=buildProfilePayload();
+  if(!pl)return;
+  let r=await (await fetch('/api/wifi/profile/save',{method:'POST',body:JSON.stringify(pl)})).json();
+  if(!r.success)return alert('保存失败: '+(r.message||'参数无效'));
+  resetWifiForm();
+  loadWifiProfiles();
+  pollStatus();
+  alert('Wi-Fi 配置已保存');
+}
+async function connectWifi(){
+  let pl=buildProfilePayload();
+  if(!pl)return;
+  let r=await (await fetch('/api/wifi/connect',{method:'POST',body:JSON.stringify(pl)})).json();
+  if(!r.success)return alert('下发失败: '+(r.message||'未知错误'));
+  resetWifiForm();
+  loadWifiProfiles();
+  alert('已保存并下发连接请求，请观察顶部 WiFi 状态');
+}
+async function reconnectWifi(){await fetch('/api/wifi/reconnect',{method:'POST'});pollStatus();}
+async function clearWifi(){if(confirm('清空全部已保存 Wi-Fi 并切回 AP 模式？')){resetWifiForm();await fetch('/api/wifi/disconnect',{method:'POST'});loadWifiProfiles();pollStatus();}}
+
+async function loadConfig(){
+  try{
+    let c=await (await fetch('/api/config')).json();
+    cfgMem.checked=!!c.mem_enabled;
+    cfgPd.value=String(c.pd_volts);
+    cfgKp.value=c.kp;cfgKi.value=c.ki;cfgKd.value=c.kd;
+    cfgFullS.value=c.disp_full_s;cfgDimS.value=c.disp_dim_s;
+    cfgFullBr.value=c.disp_full_bright;cfgDimBr.value=c.disp_dim_bright;
+    pdoCaps.innerHTML=(c.pd_caps||[]).map(p=>'<span class="chip '+(p.v===c.pd_volts?'on':'')+'">'+p.v+'V '+(p.ma/1000).toFixed(2)+'A</span>').join('')||'<span class="chip">未检测到 PD 档位</span>';
+  }catch(e){}
+}
+async function saveConfig(){
+  await fetch('/api/config',{method:'POST',body:JSON.stringify({
+    pd_volts:parseInt(cfgPd.value),
+    mem_enabled:cfgMem.checked,
+    kp:parseFloat(cfgKp.value),
+    ki:parseFloat(cfgKi.value),
+    kd:parseFloat(cfgKd.value)
+  })});
+  alert('配置已保存并生效');
+  loadConfig();
+}
+async function saveDisplayCfg(){
+  await fetch('/api/config',{method:'POST',body:JSON.stringify({
+    disp_full_s:parseInt(cfgFullS.value||0),
+    disp_dim_s:parseInt(cfgDimS.value||0),
+    disp_full_bright:parseInt(cfgFullBr.value||255),
+    disp_dim_bright:parseInt(cfgDimBr.value||50)
+  })});
+  alert('屏幕熄屏参数已保存并生效');
+  loadConfig();
+}
+async function loadDevInfo(){
+  try{
+    let d=await (await fetch('/api/device/info')).json();
+    topVer.textContent='v'+d.version;
+    otaVer.textContent='v'+d.version;
+    otaSys.textContent='Zephyr '+d.zephyr+' / 运行 '+d.uptime+'s';
+    otaConf.textContent=d.confirmed?'已确认 (Confirmed)':'待确认';
+  }catch(e){}
+}
+function startOta(){
+  let f=otaFile.files[0];
+  if(!f)return alert('请先选择 zephyr.signed.bin 文件');
+  otaBar.style.width='0%';
+  otaMsg.textContent='正在上传并写入 Flash...';
+  let xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/ota/upload',true);
+  xhr.setRequestHeader('Content-Type','application/octet-stream');
+  xhr.upload.onprogress=e=>{
+    if(e.lengthComputable){
+      let p=Math.round((e.loaded/e.total)*100);
+      otaBar.style.width=p+'%';
+      otaMsg.textContent='上传写入中: '+p+'% ('+e.loaded+'/'+e.total+' B)';
+    }
+  };
+  xhr.onload=()=>{
+    try{
+      let r=JSON.parse(xhr.responseText);
+      if(r.success){
+        otaBar.style.width='100%';
+        otaMsg.textContent='升级成功 (v'+r.version+')，设备正在重启... 8 秒后自动刷新';
+        setTimeout(()=>location.reload(),8000);
+      }else{
+        otaMsg.textContent='升级失败: '+(r.message||'未知错误');
+      }
+    }catch(e){otaMsg.textContent='响应解析失败 ('+xhr.status+')';}
+  };
+  xhr.onerror=()=>{otaMsg.textContent='上传连接中断';};
+  xhr.send(f);
+}
+
+loadDevInfo();
+pollStatus();
+setInterval(pollStatus,800);
+</script>
+</body>
+</html>

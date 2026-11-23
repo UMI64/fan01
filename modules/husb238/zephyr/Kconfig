@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+
+menu "HUSB238 PD sink driver configuration"
+
+config HUSB238_DRIVER
+	bool "Hynetek HUSB238 USB PD sink controller support"
+	default y
+	depends on DT_HAS_HYNETEK_HUSB238_ENABLED
+	select I2C
+	help
+	  Enable support for the Hynetek HUSB238 I2C USB Power Delivery
+	  sink controller.
+
+if HUSB238_DRIVER
+
+config HUSB238_INIT_PRIORITY
+	int "Init priority"
+	default 80
+	help
+	  Device driver initialization priority (must be after I2C init).
+
+endif # HUSB238_DRIVER
+
+endmenu

@@ -1,0 +1,7 @@
+/.venv
+/.west
+/build
+/deps
+/code/build
+/code/dependencies.lock
+/code/sdkconfig.old

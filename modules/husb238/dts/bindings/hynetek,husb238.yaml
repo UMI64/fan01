@@ -1,0 +1,5 @@
+description: Hynetek HUSB238 USB PD Sink Controller
+
+compatible: "hynetek,husb238"
+
+include: [i2c-device.yaml]

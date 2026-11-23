@@ -1,0 +1,5 @@
+# Copyright 2024 umi
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_ESP32C3_FAN01
+	select SOC_ESP32C3

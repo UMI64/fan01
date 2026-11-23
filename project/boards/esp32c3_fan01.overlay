@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+
+/ {
+	chosen {
+		zephyr,settings-partition = &settings_partition;
+	};
+
+	zephyr,user {
+		/*
+		 * ADC1 channels:
+		 *   0 -> CH0 (GPIO0): 风扇电流采样
+		 *   1 -> CH1 (GPIO1): 风扇电压采样
+		 *   2 -> CH3 (GPIO3): 输入电压采样
+		 */
+		io-channels = <&adc0 0>,
+			      <&adc0 1>,
+			      <&adc0 3>;
+
+		/* LEDC CH0 (GPIO13), 1.5kHz 反相 PWM */
+		pwms = <&ledc0 0 PWM_HZ(1500) PWM_POLARITY_INVERTED>;
+
+		/* GPIO4: 风扇供电控制（开漏输出，低电平有效） */
+		fan-power-gpios = <&gpio0 4 (GPIO_OPEN_DRAIN | GPIO_ACTIVE_LOW)>;
+
+		/* GPIO12: 风扇转速脉冲输入（每转 2 脉冲） */
+		fan-tach-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+	};
+
+	wifi_ap: wifi_ap {
+		compatible = "espressif,esp32-wifi";
+		status = "okay";
+	};
+};

@@ -1,0 +1,72 @@
+{
+    "version": "0.2.0",
+    "env": {
+        "ZephyrSourcePath": "${workspaceRoot}/deps/zephyr",
+        "ZephyrSDKPath": "/usr/local/zephyr-sdk-1.0.1"
+    },
+    "configurations": [
+        {
+            "name": "Debug ESP32-C3 BOOT",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceFolder}/build/mcuboot/zephyr/zephyr.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "serverpath": "/usr/local/openocd-esp32/bin/openocd",
+            "serverArgs": [
+                "-s",
+                "/usr/local/openocd-esp32/share/openocd/scripts",
+                "-s",
+                "${workspaceFolder}/boards/umi/esp32c3_fan01/support"
+            ],
+            "openOCDPreConfigLaunchCommands": [
+                "set ESP_RTOS Zephyr",
+                "set ESP_FLASH_SIZE 0",
+                "set ESP_ONLYCPU 1"
+            ],
+            "rtos": "auto",
+            "gdbPath": "/usr/local/zephyr-sdk-1.0.1/gnu/riscv64-zephyr-elf/bin/riscv64-zephyr-elf-gdb",
+            "device": "esp32c3",
+            "showDevDebugOutput": "raw",
+            "runToEntryPoint": "main",
+            "configFiles": [
+                "openocd.cfg"
+            ],
+            "overrideLaunchCommands": [
+                "set remote hardware-watchpoint-limit 4",
+                "mon reset halt"
+            ]
+        },
+        {
+            "name": "Debug ESP32-C3 APP",
+            "cwd": "${workspaceRoot}",
+            "executable": "${workspaceFolder}/build/project/zephyr/zephyr.elf",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "serverpath": "/usr/local/openocd-esp32/bin/openocd",
+            "serverArgs": [
+                "-s",
+                "/usr/local/openocd-esp32/share/openocd/scripts",
+                "-s",
+                "${workspaceFolder}/boards/umi/esp32c3_fan01/support"
+            ],
+            "openOCDPreConfigLaunchCommands": [
+                "set ESP_RTOS Zephyr",
+                "set ESP_FLASH_SIZE 0",
+                "set ESP_ONLYCPU 1"
+            ],
+            "gdbPath": "/usr/local/zephyr-sdk-1.0.1/gnu/riscv64-zephyr-elf/bin/riscv64-zephyr-elf-gdb",
+            "device": "esp32c3",
+            "showDevDebugOutput": "raw",
+            "runToEntryPoint": "main",
+            "configFiles": [
+                "openocd.cfg"
+            ],
+            "overrideLaunchCommands": [
+                "set remote hardware-watchpoint-limit 4",
+                "mon reset halt"
+            ]
+        }
+    ]
+}

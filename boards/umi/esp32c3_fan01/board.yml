@@ -1,0 +1,6 @@
+board:
+  name: esp32c3_fan01
+  full_name: ESP32C3 FAN01
+  vendor: umi
+  socs:
+  - name: esp32c3

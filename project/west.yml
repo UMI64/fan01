@@ -1,0 +1,21 @@
+manifest:
+  version: 0.8
+
+  self:
+    path: project
+
+  projects:
+    - name: zephyr
+      revision: v4.5.0
+      url: https://github.com/zephyrproject-rtos/zephyr.git
+      west-commands: scripts/west-commands.yml
+      import:
+        path-prefix: deps
+        file: west.yml
+        name-allowlist:
+          - hal_espressif
+          - mcuboot
+          - mbedtls
+          - tf-psa-crypto
+          - percepio
+          - zcbor

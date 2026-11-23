@@ -1,0 +1,48 @@
+{
+    "C_Cpp.default.compileCommands": [
+        "build/compile_commands.json",
+        "build/project/compile_commands.json"
+    ],
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.configureOnOpen": false,
+    "devicetree.zephyr": "deps/zephyr",
+    "kconfig.zephyr.base": "deps/zephyr",
+    "VsCodeTaskButtons.tasks": [
+        {
+            "label": "$(pencil)boot",
+            "task": "config_boot",
+            "tooltip": "Run Config boot"
+        },
+        {
+            "label": "$(pencil)app",
+            "task": "config_app",
+            "tooltip": "Run Config app"
+        },
+        {
+            "label": "$(gear)build",
+            "task": "build",
+            "tooltip": "Run build"
+        },
+        {
+            "label": "$(zap)boot",
+            "task": "flash_boot",
+            "tooltip": "Run flash boot"
+        },
+        {
+            "label": "$(zap)app",
+            "task": "flash_app",
+            "tooltip": "Run flash app"
+        },
+        {
+            "label": "$(file)dump",
+            "task": "dump_all",
+            "tooltip": "Dump disassembly of app"
+        },
+        {
+            "label": "$(debug)gdb",
+            "task": "gdb",
+            "tooltip": "Start GDB server"
+        }
+    ],
+    "cortex-debug.variableUseNaturalFormat": false
+}

@@ -1,0 +1,78 @@
+/*
+ * Copyright (c) 2024 umi
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
+ * 自定义分区表 - ESP32-C3 + W25Q32JVSSIQ (4MB Flash)
+ *
+ * 0x000000 - 0x010000: mcuboot (64KB)        - Bootloader
+ * 0x010000 - 0x020000: sys (64KB)            - 系统保留
+ * 0x020000 - 0x1A0000: image-0 (1536KB)      - 主应用分区
+ * 0x1A0000 - 0x320000: image-1 (1536KB)      - OTA 升级分区
+ * 0x320000 - 0x340000: image-scratch (128KB) - MCUboot scratch
+ * 0x340000 - 0x350000: settings (64KB)       - NVS 设置存储
+ * 0x350000 - 0x400000: storage (704KB)       - 预留存储分区
+ */
+
+&flash0 {
+	reg = <0x0 DT_SIZE_M(4)>;
+	ranges = <0x0 0x0 DT_SIZE_M(4)>;
+
+	partitions {
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MCUboot bootloader - 64KB */
+		boot_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "mcuboot";
+			reg = <0x000000 DT_SIZE_K(64)>;
+			read-only;
+		};
+
+		/* 系统分区 - 64KB */
+		sys_partition: partition@10000 {
+			compatible = "zephyr,mapped-partition";
+			label = "sys";
+			reg = <0x010000 DT_SIZE_K(64)>;
+		};
+
+		/* 主应用分区 - 1.5MB */
+		slot0_partition: partition@20000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x020000 DT_SIZE_K(1536)>;
+		};
+
+		/* OTA 升级分区 - 1.5MB */
+		slot1_partition: partition@1A0000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-1";
+			reg = <0x1A0000 DT_SIZE_K(1536)>;
+		};
+
+		/* MCUboot scratch 分区 - 128KB */
+		scratch_partition: partition@320000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-scratch";
+			reg = <0x320000 DT_SIZE_K(128)>;
+		};
+
+		/* 设置存储分区 - 64KB */
+		settings_partition: partition@340000 {
+			compatible = "zephyr,mapped-partition";
+			label = "settings";
+			reg = <0x340000 DT_SIZE_K(64)>;
+		};
+
+		/* 预留存储分区 - 704KB */
+		storage_partition: partition@350000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x350000 DT_SIZE_K(704)>;
+		};
+	};
+};

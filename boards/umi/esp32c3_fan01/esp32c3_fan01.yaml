@@ -1,0 +1,14 @@
+identifier: esp32c3_fan01
+name: ESP32C3 FAN01
+type: mcu
+arch: riscv
+toolchain:
+  - zephyr
+supported:
+  - gpio
+  - i2c
+  - pwm
+  - uart
+  - watchdog
+  - adc
+vendor: umi
